@@ -1,0 +1,26 @@
+{
+  "name": "fichapro",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @fichapro/ficha",
+    "dev:painel": "npm run dev -w @fichapro/painel",
+    "dev:api": "npm run dev -w @fichapro/api",
+    "build": "npm run build -w @fichapro/ficha && npm run build -w @fichapro/painel && npm run build -w @fichapro/api",
+    "typecheck": "npm run typecheck -w @fichapro/api",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "templates:validate": "node scripts/validate-templates.mjs",
+    "templates:seed": "node scripts/build-seed.mjs",
+    "templates:sync": "node scripts/seed-templates.mjs"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

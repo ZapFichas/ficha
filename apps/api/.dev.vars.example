@@ -1,0 +1,31 @@
+# Copie para .dev.vars e preencha. NUNCA comite .dev.vars.
+SUPABASE_URL=https://SEU-PROJETO.supabase.co
+SUPABASE_ANON_KEY=eyJ...
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
+
+# 32 bytes em base64 (openssl rand -base64 32)
+DATA_ENCRYPTION_KEY=
+# Pepper para HMAC do CPF (string longa e aleatória)
+CPF_HASH_PEPPER=
+# Segredo para assinar o state do OAuth (string longa e aleatória)
+OAUTH_STATE_SECRET=
+
+# Google Drive (OAuth client do tipo Web)
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_OAUTH_REDIRECT_URI=http://localhost:8787/api/drive/oauth/callback
+
+# URLs (em produção, troque para os domínios reais)
+# FICHA_URL=https://app.seudominio.com
+# PANEL_URL=https://painel.seudominio.com
+
+# E-mail transacional (opcional no MVP)
+RESEND_API_KEY=
+EMAIL_FROM=FichaPro <nao-responda@fichapro.app>
+
+# Observabilidade (opcional)
+SENTRY_DSN=
+
+# Billing (opcional nesta fase)
+STRIPE_WEBHOOK_SECRET=
+ASAAS_WEBHOOK_TOKEN=

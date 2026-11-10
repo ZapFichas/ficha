@@ -1,0 +1,428 @@
+{
+  "nicho_slug": "estetica",
+  "nome": "Ficha de Anamnese e Termo de Consentimento — Estética",
+  "nome_comercial": "FichaPro Estética",
+  "dominio": "fichadeestetica.com.br",
+  "versao": 1,
+  "publico": "Clínicas de estética e profissionais de procedimentos estéticos",
+  "dor_principal": "Anamnese incompleta, termo genérico, fotos antes/depois desorganizadas e risco de intercorrência sem registro.",
+  "secoes": [
+    {
+      "id": "identificacao",
+      "titulo": "Dados de identificação",
+      "rotulo_curto": "Dados",
+      "descricao": "Informações pessoais da cliente para registro do atendimento.",
+      "campos": [
+        {
+          "id": "nome",
+          "label": "Nome completo",
+          "tipo": "text",
+          "obrigatorio": true,
+          "min": 3,
+          "max": 120,
+          "autocomplete": "name"
+        },
+        {
+          "id": "data_nascimento",
+          "label": "Data de nascimento",
+          "tipo": "date",
+          "obrigatorio": true,
+          "regra": "data_passada"
+        },
+        {
+          "id": "cpf",
+          "label": "CPF",
+          "tipo": "cpf",
+          "obrigatorio": true,
+          "placeholder": "000.000.000-00"
+        },
+        {
+          "id": "rg",
+          "label": "RG / documento",
+          "tipo": "text",
+          "obrigatorio": true,
+          "max": 30
+        },
+        {
+          "id": "telefone",
+          "label": "Telefone / WhatsApp",
+          "tipo": "tel",
+          "obrigatorio": true,
+          "autocomplete": "tel"
+        },
+        {
+          "id": "email",
+          "label": "E-mail",
+          "tipo": "email",
+          "obrigatorio": false,
+          "autocomplete": "email"
+        },
+        {
+          "id": "endereco",
+          "label": "Endereço completo",
+          "tipo": "textarea",
+          "obrigatorio": true,
+          "min": 10,
+          "max": 300
+        },
+        {
+          "id": "contato_emergencia",
+          "label": "Contato de emergência",
+          "tipo": "text",
+          "obrigatorio": true,
+          "max": 160
+        },
+        {
+          "id": "documento",
+          "label": "Documento de identificação com foto",
+          "tipo": "upload",
+          "obrigatorio": false,
+          "max_mb": 10,
+          "aceita": ["image/jpeg", "image/png", "image/webp", "application/pdf"]
+        }
+      ]
+    },
+    {
+      "id": "saude",
+      "titulo": "Histórico de saúde",
+      "rotulo_curto": "Saúde",
+      "descricao": "Algumas condições e medicamentos contraindicam ou exigem adaptação do procedimento.",
+      "layout": "grade",
+      "campos": [
+        {
+          "id": "tratamento_medico",
+          "label": "Está em tratamento médico?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true,
+          "alerta_sim": true
+        },
+        {
+          "id": "gestante",
+          "label": "Está gestante?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true,
+          "alerta_sim": true
+        },
+        {
+          "id": "lactante",
+          "label": "Está amamentando?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true,
+          "alerta_sim": true
+        },
+        {
+          "id": "alergia_anestesico",
+          "label": "Alergia a anestésico ou lidocaína?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true,
+          "alerta_sim": true
+        },
+        {
+          "id": "alergia_latex",
+          "label": "Alergia a látex?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true,
+          "alerta_sim": true
+        },
+        {
+          "id": "herpes_recorrente",
+          "label": "Herpes labial recorrente?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true,
+          "alerta_sim": true
+        },
+        {
+          "id": "diabetes",
+          "label": "Diabetes?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true,
+          "alerta_sim": true
+        },
+        {
+          "id": "hipertensao",
+          "label": "Hipertensão?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true,
+          "alerta_sim": true
+        },
+        {
+          "id": "anticoagulante",
+          "label": "Usa anticoagulante ou antiagregante?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true,
+          "alerta_sim": true
+        },
+        {
+          "id": "isotretinoina",
+          "label": "Usou isotretinoína nos últimos 6 meses?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true,
+          "alerta_sim": true
+        },
+        {
+          "id": "fotossensibilidade",
+          "label": "Tem fotossensibilidade ou usa medicamento fotossensibilizante?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true,
+          "alerta_sim": true
+        },
+        {
+          "id": "imunossupressao",
+          "label": "Imunidade baixa ou uso de imunossupressor?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true,
+          "alerta_sim": true
+        },
+        {
+          "id": "cancer",
+          "label": "Já teve ou trata câncer?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true,
+          "alerta_sim": true
+        },
+        {
+          "id": "queloide",
+          "label": "Histórico de queloide?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true,
+          "alerta_sim": true
+        },
+        {
+          "id": "problema_pele",
+          "label": "Problema de pele ativo na área?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true,
+          "alerta_sim": true
+        },
+        {
+          "id": "epilepsia",
+          "label": "Epilepsia ou convulsões?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true,
+          "alerta_sim": true
+        },
+        {
+          "id": "detalhamento",
+          "label": "Detalhamento",
+          "tipo": "textarea",
+          "obrigatorio": false,
+          "max": 800,
+          "placeholder": "Descreva condições, medicamentos em uso, cirurgias e alergias."
+        }
+      ]
+    },
+    {
+      "id": "procedimento",
+      "titulo": "Procedimento",
+      "rotulo_curto": "Procedimento",
+      "descricao": "Dados do procedimento estético a ser realizado.",
+      "campos": [
+        {
+          "id": "procedimentos",
+          "label": "Procedimentos",
+          "tipo": "checkbox",
+          "obrigatorio": true,
+          "opcoes": [
+            "Toxina botulínica",
+            "Preenchimento com ácido hialurônico",
+            "Bioestimulador de colágeno",
+            "Laser / IPL",
+            "Peeling químico",
+            "Microagulhamento",
+            "Limpeza de pele",
+            "Outro"
+          ]
+        },
+        {
+          "id": "areas_tratadas",
+          "label": "Áreas tratadas",
+          "tipo": "text",
+          "obrigatorio": true,
+          "max": 200,
+          "placeholder": "Ex.: terço superior da face, região periorbital"
+        },
+        {
+          "id": "profissional",
+          "label": "Profissional responsável",
+          "tipo": "select",
+          "obrigatorio": true,
+          "opcoes_fonte": "profissionais"
+        },
+        {
+          "id": "data_procedimento",
+          "label": "Data do procedimento",
+          "tipo": "date",
+          "obrigatorio": true
+        },
+        {
+          "id": "valor",
+          "label": "Valor do procedimento (R$)",
+          "tipo": "number",
+          "obrigatorio": false,
+          "min": 0
+        },
+        {
+          "id": "foto_antes",
+          "label": "Foto antes do procedimento",
+          "tipo": "upload",
+          "obrigatorio": false,
+          "max_mb": 15,
+          "aceita": ["image/jpeg", "image/png", "image/webp"],
+          "hint": "Opcional. A foto é comprimida no celular antes do envio."
+        },
+        {
+          "id": "observacoes",
+          "label": "Observações e expectativas",
+          "tipo": "textarea",
+          "obrigatorio": false,
+          "max": 800,
+          "placeholder": "Expectativas da cliente, histórico de procedimentos e orientações."
+        }
+      ]
+    },
+    {
+      "id": "responsavel_menor",
+      "titulo": "Autorização do responsável legal",
+      "rotulo_curto": "Responsável",
+      "descricao": "Obrigatório para clientes menores de 18 anos.",
+      "condicional": { "tipo": "menor_idade" },
+      "campos": [
+        {
+          "id": "responsavel_nome",
+          "label": "Nome completo do responsável",
+          "tipo": "text",
+          "obrigatorio": true,
+          "max": 120
+        },
+        {
+          "id": "responsavel_cpf",
+          "label": "CPF do responsável",
+          "tipo": "cpf",
+          "obrigatorio": true
+        },
+        {
+          "id": "responsavel_rg",
+          "label": "RG / documento do responsável",
+          "tipo": "text",
+          "obrigatorio": true,
+          "max": 30
+        },
+        {
+          "id": "parentesco",
+          "label": "Parentesco",
+          "tipo": "select",
+          "obrigatorio": true,
+          "opcoes": ["Mãe", "Pai", "Tutor(a) legal", "Avó / Avô", "Outro"]
+        },
+        {
+          "id": "responsavel_telefone",
+          "label": "Telefone do responsável",
+          "tipo": "tel",
+          "obrigatorio": true
+        },
+        {
+          "id": "responsavel_presente",
+          "label": "O responsável está presente no local?",
+          "tipo": "sim_nao",
+          "obrigatorio": true
+        },
+        {
+          "id": "autorizacao_upload",
+          "label": "Autorização assinada + documento com foto",
+          "tipo": "upload",
+          "obrigatorio": true,
+          "max_mb": 10,
+          "aceita": ["image/jpeg", "image/png", "image/webp", "application/pdf"]
+        }
+      ]
+    }
+  ],
+  "consentimentos_extras": [
+    {
+      "id": "autorizo_imagens",
+      "label": "Autorizo o registro fotográfico antes, durante e depois para documentação clínica. Autorizo também o uso das imagens no portfólio do estabelecimento.",
+      "obrigatorio": false
+    },
+    {
+      "id": "ciencia_resultados",
+      "label": "Estou ciente de que os resultados variam conforme a resposta individual e não há garantia de resultado idêntico ao de fotos ou exemplos.",
+      "obrigatorio": true
+    }
+  ],
+  "termo_texto": "Eu autorizo a realização do procedimento estético descrito nesta ficha, executado por profissional habilitado, e declaro que recebi informações claras sobre o procedimento, seus benefícios, limitações, riscos e cuidados.\n\nEstou ciente de que podem ocorrer efeitos esperados e adversos, incluindo dor, edema, equimose, vermelhidão, sensibilidade, hematomas, infecção, reação alérgica, hiperpigmentação, hipopigmentação, assimetria, nódulos, necrose, cicatrizes e, em procedimentos com laser ou peelings, alterações temporárias de textura e cor da pele. Sei que resultados variam de pessoa para pessoa e que podem ser necessárias sessões adicionais.\n\nComprometo-me a seguir as orientações de cuidado, incluindo fotoproteção, hidratação, evitar exposição solar, calor e atividades intensas pelo período indicado, e a retornar para avaliação conforme combinado. Comprometo-me a informar imediatamente qualquer sinal de complicação.\n\nDeclaro que forneci informações verdadeiras sobre minha saúde, medicamentos, alergias e procedimentos anteriores. Se eu for menor de 18 anos, declaro que estou acompanhada do responsável legal, que autoriza o procedimento e assina este documento.\n\nReconheço a validade da assinatura eletrônica como manifestação de vontade, com trilha de auditoria contendo hash do conteúdo, data e hora, IP e dispositivo.",
+  "consentimento_lgpd": "Li e concordo com o tratamento dos meus dados pessoais e dados sensíveis de saúde, incluindo imagens clínicas, nos termos da LGPD (Lei 13.709/2018), para fins de registro do atendimento, acompanhamento, cumprimento de obrigações legais e exercício regular de direitos.\n\nOs dados serão armazenados por até {{retencao_anos}} anos, ou pelo prazo legal aplicável, e poderei solicitar acesso, correção ou exclusão pelo e-mail {{email_contato}}. A exclusão pode ser limitada por obrigação legal de guarda. As imagens serão usadas apenas para as finalidades informadas e não serão compartilhadas com terceiros sem consentimento, salvo obrigação legal.",
+  "landing_copy": {
+    "headline": "Ficha de anamnese digital para clínicas de estética",
+    "subheadline": "Termo, foto antes/depois e assinatura em um fluxo só. O PDF chega organizado no seu Drive.",
+    "cta_primario": "Testar grátis por 7 dias",
+    "cta_secundario": "Ver demonstração",
+    "secoes": [
+      "Problema: anamnese incompleta e termo genérico",
+      "Solução: ficha no celular, termo por procedimento e PDF organizado",
+      "Diferenciais: foto antes/depois, autorização de imagem e trilha de assinatura",
+      "Planos e preços",
+      "Perguntas frequentes"
+    ],
+    "seo_keywords": [
+      "ficha de anamnese estética",
+      "termo de consentimento estética",
+      "ficha digital clínica de estética",
+      "anamnese botox preenchimento"
+    ],
+    "faq": [
+      {
+        "pergunta": "O termo serve para botox e preenchimento?",
+        "resposta": "Sim. O template cobre os procedimentos mais comuns e você pode ativar os campos que usa."
+      },
+      {
+        "pergunta": "Consigo anexar a foto antes do procedimento?",
+        "resposta": "Sim. A cliente ou o profissional pode enviar a foto, que é comprimida e anexada ao registro."
+      },
+      {
+        "pergunta": "A cliente assina no celular?",
+        "resposta": "Sim. A assinatura é capturada na tela e vinculada à trilha de auditoria da ficha."
+      },
+      {
+        "pergunta": "Posso personalizar o termo?",
+        "resposta": "Você escolhe o template e pode adaptar os campos ativos no painel, sem código."
+      },
+      {
+        "pergunta": "Onde ficam as fichas?",
+        "resposta": "Na sua conta do Google Drive, organizadas por profissional, mês e cliente."
+      }
+    ]
+  },
+  "onboarding": {
+    "passos": [
+      "Criar conta",
+      "Escolher o template Estética",
+      "Conectar o Google Drive",
+      "Personalizar a marca",
+      "Gerar o QR code",
+      "Testar uma ficha"
+    ],
+    "tempo_estimado": "8 minutos"
+  },
+  "preco": {
+    "solo": { "valor": 79, "inclui": "1 profissional, fichas ilimitadas, 5 GB" },
+    "estudio": { "valor": 149, "inclui": "até 3 profissionais, 20 GB, relatórios" },
+    "pro": { "valor": 249, "inclui": "ilimitado, trilha de hash, retenção configurável, 100 GB" },
+    "anual": "2 meses grátis"
+  }
+}

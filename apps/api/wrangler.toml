@@ -1,0 +1,31 @@
+name = "fichapro-api"
+main = "src/index.ts"
+compatibility_date = "2026-01-01"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[vars]
+APP_URL = "http://localhost:5173"
+FICHA_URL = "http://localhost:5173"
+PANEL_URL = "http://localhost:5174"
+ENVIRONMENT = "development"
+
+[[r2_buckets]]
+binding = "FICHAS_BUCKET"
+bucket_name = "fichapro-fichas"
+
+[[queues.producers]]
+binding = "PDF_QUEUE"
+queue = "fichapro-pdf"
+
+[[queues.consumers]]
+queue = "fichapro-pdf"
+max_batch_size = 5
+max_retries = 3
+dead_letter_queue = "fichapro-pdf-dlq"
+
+[triggers]
+crons = ["0 6 * * *"]
+
+[observability]
+enabled = true

@@ -1,0 +1,426 @@
+{
+  "nicho_slug": "fitness",
+  "nome": "Anamnese, PAR-Q e Termo de Responsabilidade — Treinamento",
+  "nome_comercial": "FichaPro Fitness",
+  "dominio": "fichadepersonal.com.br",
+  "versao": 1,
+  "publico": "Personal trainers, estúdios de treinamento e nutricionistas",
+  "dor_principal": "PAR-Q em papel, aluno sem liberação médica registrada e termo de responsabilidade frágil.",
+  "secoes": [
+    {
+      "id": "identificacao",
+      "titulo": "Dados de identificação",
+      "rotulo_curto": "Dados",
+      "descricao": "Informações do aluno para o registro do acompanhamento.",
+      "campos": [
+        {
+          "id": "nome",
+          "label": "Nome completo",
+          "tipo": "text",
+          "obrigatorio": true,
+          "min": 3,
+          "max": 120,
+          "autocomplete": "name"
+        },
+        {
+          "id": "data_nascimento",
+          "label": "Data de nascimento",
+          "tipo": "date",
+          "obrigatorio": true,
+          "regra": "data_passada"
+        },
+        {
+          "id": "cpf",
+          "label": "CPF",
+          "tipo": "cpf",
+          "obrigatorio": true,
+          "placeholder": "000.000.000-00"
+        },
+        {
+          "id": "rg",
+          "label": "RG / documento",
+          "tipo": "text",
+          "obrigatorio": false,
+          "max": 30
+        },
+        {
+          "id": "telefone",
+          "label": "Telefone / WhatsApp",
+          "tipo": "tel",
+          "obrigatorio": true,
+          "autocomplete": "tel"
+        },
+        {
+          "id": "email",
+          "label": "E-mail",
+          "tipo": "email",
+          "obrigatorio": false,
+          "autocomplete": "email"
+        },
+        {
+          "id": "endereco",
+          "label": "Endereço",
+          "tipo": "textarea",
+          "obrigatorio": false,
+          "max": 300
+        },
+        {
+          "id": "contato_emergencia",
+          "label": "Contato de emergência",
+          "tipo": "text",
+          "obrigatorio": true,
+          "max": 160,
+          "placeholder": "Nome e telefone"
+        },
+        {
+          "id": "documento",
+          "label": "Documento de identificação",
+          "tipo": "upload",
+          "obrigatorio": false,
+          "max_mb": 10,
+          "aceita": ["image/jpeg", "image/png", "image/webp", "application/pdf"]
+        }
+      ]
+    },
+    {
+      "id": "parq",
+      "titulo": "Triagem PAR-Q",
+      "rotulo_curto": "PAR-Q",
+      "descricao": "Responda com sinceridade. Qualquer resposta “Sim” exige liberação médica antes do treino.",
+      "layout": "grade",
+      "campos": [
+        {
+          "id": "parq_cardiaco",
+          "label": "Algum médico já disse que você tem problema cardíaco?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true,
+          "alerta_sim": true,
+          "parq": true
+        },
+        {
+          "id": "parq_dor_peito",
+          "label": "Sente dor no peito durante exercício?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true,
+          "alerta_sim": true,
+          "parq": true
+        },
+        {
+          "id": "parq_tontura",
+          "label": "Sente tontura, desmaio ou perda de equilíbrio?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true,
+          "alerta_sim": true,
+          "parq": true
+        },
+        {
+          "id": "parq_osseo",
+          "label": "Tem problema ósseo, articular ou de coluna que possa piorar?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true,
+          "alerta_sim": true,
+          "parq": true
+        },
+        {
+          "id": "parq_pressao",
+          "label": "Toma medicamento para pressão arterial ou coração?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true,
+          "alerta_sim": true,
+          "parq": true
+        },
+        {
+          "id": "parq_outra_razao",
+          "label": "Existe outra razão médica para não praticar exercício?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true,
+          "alerta_sim": true,
+          "parq": true
+        },
+        {
+          "id": "parq_gestante",
+          "label": "Está gestante ou amamentando?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true,
+          "alerta_sim": true,
+          "parq": true
+        },
+        {
+          "id": "liberacao_medica",
+          "label": "Liberação médica",
+          "tipo": "upload",
+          "obrigatorio": true,
+          "max_mb": 10,
+          "aceita": ["image/jpeg", "image/png", "image/webp", "application/pdf"],
+          "hint": "Obrigatória quando qualquer resposta do PAR-Q for “Sim”. Anexe o atestado ou liberação médica.",
+          "condicional": { "tipo": "parq_positivo" }
+        },
+        {
+          "id": "parq_detalhamento",
+          "label": "Detalhamento das respostas “Sim”",
+          "tipo": "textarea",
+          "obrigatorio": false,
+          "max": 800,
+          "placeholder": "Descreva a condição, o medicamento e a orientação médica recebida."
+        }
+      ]
+    },
+    {
+      "id": "saude",
+      "titulo": "Histórico e objetivos",
+      "rotulo_curto": "Histórico",
+      "descricao": "Informações para personalizar o treino com segurança.",
+      "campos": [
+        {
+          "id": "objetivo",
+          "label": "Objetivo principal",
+          "tipo": "checkbox",
+          "obrigatorio": true,
+          "opcoes": [
+            "Emagrecimento",
+            "Hipertrofia",
+            "Condicionamento",
+            "Reabilitação",
+            "Saúde e bem-estar",
+            "Performance esportiva"
+          ]
+        },
+        {
+          "id": "nivel_atividade",
+          "label": "Nível de atividade atual",
+          "tipo": "select",
+          "obrigatorio": true,
+          "opcoes": ["Sedentário", "Leve (1-2x/semana)", "Moderado (3-4x/semana)", "Intenso (5x ou mais)"]
+        },
+        {
+          "id": "peso",
+          "label": "Peso (kg)",
+          "tipo": "number",
+          "obrigatorio": false,
+          "min": 20,
+          "max": 400
+        },
+        {
+          "id": "altura",
+          "label": "Altura (cm)",
+          "tipo": "number",
+          "obrigatorio": false,
+          "min": 80,
+          "max": 260
+        },
+        {
+          "id": "circunferencia_cintura",
+          "label": "Circunferência da cintura (cm)",
+          "tipo": "number",
+          "obrigatorio": false,
+          "min": 30,
+          "max": 250
+        },
+        {
+          "id": "restricoes",
+          "label": "Restrições ou lesões",
+          "tipo": "textarea",
+          "obrigatorio": false,
+          "max": 800,
+          "placeholder": "Lesões, dores, cirurgias, limitações de movimento."
+        },
+        {
+          "id": "medicamentos",
+          "label": "Medicamentos em uso",
+          "tipo": "textarea",
+          "obrigatorio": false,
+          "max": 600
+        },
+        {
+          "id": "fumante",
+          "label": "Fuma?",
+          "tipo": "sim_nao",
+          "obrigatorio": false
+        },
+        {
+          "id": "alcool",
+          "label": "Consome bebida alcoólica com frequência?",
+          "tipo": "sim_nao",
+          "obrigatorio": false
+        }
+      ]
+    },
+    {
+      "id": "acompanhamento",
+      "titulo": "Acompanhamento",
+      "rotulo_curto": "Treino",
+      "descricao": "Dados do plano e do profissional responsável.",
+      "campos": [
+        {
+          "id": "profissional",
+          "label": "Profissional responsável",
+          "tipo": "select",
+          "obrigatorio": true,
+          "opcoes_fonte": "profissionais"
+        },
+        {
+          "id": "data_inicio",
+          "label": "Data de início",
+          "tipo": "date",
+          "obrigatorio": true
+        },
+        {
+          "id": "frequencia_semanal",
+          "label": "Frequência semanal",
+          "tipo": "select",
+          "obrigatorio": true,
+          "opcoes": ["1x", "2x", "3x", "4x", "5x", "6x ou mais"]
+        },
+        {
+          "id": "valor",
+          "label": "Valor do acompanhamento (R$)",
+          "tipo": "number",
+          "obrigatorio": false,
+          "min": 0
+        },
+        {
+          "id": "observacoes",
+          "label": "Observações",
+          "tipo": "textarea",
+          "obrigatorio": false,
+          "max": 600
+        }
+      ]
+    },
+    {
+      "id": "responsavel_menor",
+      "titulo": "Autorização do responsável legal",
+      "rotulo_curto": "Responsável",
+      "descricao": "Obrigatório para alunos menores de 18 anos.",
+      "condicional": { "tipo": "menor_idade" },
+      "campos": [
+        {
+          "id": "responsavel_nome",
+          "label": "Nome completo do responsável",
+          "tipo": "text",
+          "obrigatorio": true,
+          "max": 120
+        },
+        {
+          "id": "responsavel_cpf",
+          "label": "CPF do responsável",
+          "tipo": "cpf",
+          "obrigatorio": true
+        },
+        {
+          "id": "responsavel_rg",
+          "label": "RG / documento do responsável",
+          "tipo": "text",
+          "obrigatorio": true,
+          "max": 30
+        },
+        {
+          "id": "parentesco",
+          "label": "Parentesco",
+          "tipo": "select",
+          "obrigatorio": true,
+          "opcoes": ["Mãe", "Pai", "Tutor(a) legal", "Avó / Avô", "Outro"]
+        },
+        {
+          "id": "responsavel_telefone",
+          "label": "Telefone do responsável",
+          "tipo": "tel",
+          "obrigatorio": true
+        },
+        {
+          "id": "responsavel_presente",
+          "label": "O responsável está presente no local?",
+          "tipo": "sim_nao",
+          "obrigatorio": true
+        },
+        {
+          "id": "autorizacao_upload",
+          "label": "Autorização assinada + documento com foto",
+          "tipo": "upload",
+          "obrigatorio": true,
+          "max_mb": 10,
+          "aceita": ["image/jpeg", "image/png", "image/webp", "application/pdf"]
+        }
+      ]
+    }
+  ],
+  "consentimentos_extras": [
+    {
+      "id": "ciencia_nao_medico",
+      "label": "Estou ciente de que a avaliação e o treinamento não substituem consulta, diagnóstico ou tratamento médico.",
+      "obrigatorio": true
+    },
+    {
+      "id": "autorizo_imagens",
+      "label": "Autorizo o registro fotográfico da evolução física para acompanhamento e portfólio do profissional.",
+      "obrigatorio": false
+    }
+  ],
+  "termo_texto": "Eu declaro que as informações fornecidas nesta anamnese e no PAR-Q são verdadeiras e completas, e que informei ao profissional todas as condições de saúde, lesões, medicamentos e restrições conhecidas.\n\nEstou ciente de que a prática de exercício físico envolve riscos, incluindo lesões musculares, articulares e cardiovasculares, e que a avaliação realizada não substitui consulta, diagnóstico ou tratamento médico. Comprometo-me a interromper o exercício e procurar orientação se sentir dor no peito, tontura, falta de ar anormal, desmaio ou qualquer sinal de mal-estar.\n\nComprometo-me a seguir as orientações do profissional, respeitar meus limites e comunicar qualquer mudança no meu estado de saúde. Se qualquer resposta do PAR-Q for “Sim”, declaro que apresentei liberação médica antes de iniciar o treinamento.\n\nSe eu for menor de 18 anos, declaro que estou acompanhado(a) do responsável legal, que autoriza a prática de exercícios e assina este documento.\n\nReconheço a validade da assinatura eletrônica como manifestação de vontade, com trilha de auditoria contendo hash do conteúdo, data e hora, IP e dispositivo.",
+  "consentimento_lgpd": "Li e concordo com o tratamento dos meus dados pessoais e dados sensíveis de saúde, nos termos da LGPD (Lei 13.709/2018), para fins de avaliação, prescrição e acompanhamento do treinamento, cumprimento de obrigações legais e exercício regular de direitos.\n\nOs dados serão armazenados por até {{retencao_anos}} anos, ou pelo prazo legal aplicável, e poderei solicitar acesso, correção ou exclusão pelo e-mail {{email_contato}}. A exclusão pode ser limitada por obrigação legal de guarda. Imagens e documentos serão usados apenas para as finalidades informadas e não serão compartilhados com terceiros sem consentimento, salvo obrigação legal.",
+  "landing_copy": {
+    "headline": "PAR-Q e anamnese digital para personal trainers",
+    "subheadline": "O aluno preenche e assina no celular. Você recebe o PDF organizado, com liberação médica quando necessário.",
+    "cta_primario": "Testar grátis por 7 dias",
+    "cta_secundario": "Ver demonstração",
+    "secoes": [
+      "Problema: PAR-Q em papel e termo frágil",
+      "Solução: ficha no celular, PAR-Q automático e PDF no Drive",
+      "Diferenciais: liberação médica condicional e assinatura com trilha",
+      "Planos e preços",
+      "Perguntas frequentes"
+    ],
+    "seo_keywords": [
+      "ficha de anamnese personal trainer",
+      "PAR-Q digital",
+      "termo de responsabilidade academia",
+      "anamnese fitness pdf"
+    ],
+    "faq": [
+      {
+        "pergunta": "O que acontece se o aluno responder “Sim” no PAR-Q?",
+        "resposta": "O sistema exibe e exige o envio da liberação médica antes de concluir a ficha."
+      },
+      {
+        "pergunta": "Serve para nutricionistas?",
+        "resposta": "Sim. Você pode adaptar os campos ativos no painel para avaliação nutricional."
+      },
+      {
+        "pergunta": "O aluno assina no celular?",
+        "resposta": "Sim. A assinatura é capturada na tela e vinculada ao hash do conteúdo."
+      },
+      {
+        "pergunta": "Posso registrar medidas e evolução?",
+        "resposta": "Sim. Peso, altura e circunferência podem ser ativados no template e aparecem no PDF."
+      },
+      {
+        "pergunta": "Onde ficam as fichas?",
+        "resposta": "Na sua conta do Google Drive, organizadas por profissional, mês e aluno."
+      }
+    ]
+  },
+  "onboarding": {
+    "passos": [
+      "Criar conta",
+      "Escolher o template Fitness",
+      "Conectar o Google Drive",
+      "Personalizar a marca",
+      "Gerar o QR code",
+      "Testar uma ficha"
+    ],
+    "tempo_estimado": "8 minutos"
+  },
+  "preco": {
+    "solo": { "valor": 49, "inclui": "1 profissional, fichas ilimitadas, 5 GB" },
+    "estudio": { "valor": 99, "inclui": "até 3 profissionais, 20 GB, relatórios" },
+    "pro": { "valor": 199, "inclui": "ilimitado, trilha de hash, retenção configurável, 100 GB" },
+    "anual": "2 meses grátis"
+  }
+}

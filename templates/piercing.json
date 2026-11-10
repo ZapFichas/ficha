@@ -1,0 +1,424 @@
+{
+  "nicho_slug": "piercing",
+  "nome": "Ficha de Anamnese e Termo de Consentimento — Piercing",
+  "nome_comercial": "FichaPro Piercing",
+  "dominio": "fichadepiercing.com.br",
+  "versao": 1,
+  "publico": "Estúdios de piercing e micropigmentação",
+  "dor_principal": "Ficha em papel, termo desatualizado, autorização de menor perdida e falta de histórico do cliente.",
+  "secoes": [
+    {
+      "id": "identificacao",
+      "titulo": "Dados de identificação",
+      "rotulo_curto": "Dados",
+      "descricao": "Informações pessoais do cliente para registro do procedimento.",
+      "campos": [
+        {
+          "id": "nome",
+          "label": "Nome completo",
+          "tipo": "text",
+          "obrigatorio": true,
+          "min": 3,
+          "max": 120,
+          "autocomplete": "name"
+        },
+        {
+          "id": "data_nascimento",
+          "label": "Data de nascimento",
+          "tipo": "date",
+          "obrigatorio": true,
+          "regra": "data_passada"
+        },
+        {
+          "id": "cpf",
+          "label": "CPF",
+          "tipo": "cpf",
+          "obrigatorio": true,
+          "placeholder": "000.000.000-00"
+        },
+        {
+          "id": "rg",
+          "label": "RG / documento",
+          "tipo": "text",
+          "obrigatorio": true,
+          "max": 30
+        },
+        {
+          "id": "telefone",
+          "label": "Telefone / WhatsApp",
+          "tipo": "tel",
+          "obrigatorio": true,
+          "autocomplete": "tel",
+          "placeholder": "(00) 00000-0000"
+        },
+        {
+          "id": "email",
+          "label": "E-mail",
+          "tipo": "email",
+          "obrigatorio": false,
+          "autocomplete": "email"
+        },
+        {
+          "id": "endereco",
+          "label": "Endereço completo",
+          "tipo": "textarea",
+          "obrigatorio": true,
+          "min": 10,
+          "max": 300
+        },
+        {
+          "id": "contato_emergencia",
+          "label": "Contato de emergência",
+          "tipo": "text",
+          "obrigatorio": true,
+          "max": 160,
+          "placeholder": "Nome e telefone"
+        },
+        {
+          "id": "documento",
+          "label": "Documento de identificação com foto",
+          "tipo": "upload",
+          "obrigatorio": false,
+          "max_mb": 10,
+          "aceita": ["image/jpeg", "image/png", "image/webp", "application/pdf"]
+        }
+      ]
+    },
+    {
+      "id": "saude",
+      "titulo": "Histórico de saúde",
+      "rotulo_curto": "Saúde",
+      "descricao": "Algumas condições aumentam o risco de complicações na perfuração. Responda com sinceridade.",
+      "layout": "grade",
+      "campos": [
+        {
+          "id": "tratamento_medico",
+          "label": "Está em tratamento médico?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true,
+          "alerta_sim": true
+        },
+        {
+          "id": "alergia_metal",
+          "label": "Alergia a metal (níquel, aço, prata)?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true,
+          "alerta_sim": true
+        },
+        {
+          "id": "alergia_latex",
+          "label": "Alergia a látex ou anestésico?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true,
+          "alerta_sim": true
+        },
+        {
+          "id": "diabetes",
+          "label": "Diabetes?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true,
+          "alerta_sim": true
+        },
+        {
+          "id": "hemofilia",
+          "label": "Problema de coagulação ou hemofilia?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true,
+          "alerta_sim": true
+        },
+        {
+          "id": "anticoagulante",
+          "label": "Usa anticoagulante ou antiagregante?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true,
+          "alerta_sim": true
+        },
+        {
+          "id": "imunossupressao",
+          "label": "Tem imunidade baixa ou usa imunossupressor?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true,
+          "alerta_sim": true
+        },
+        {
+          "id": "cardio_congenita",
+          "label": "Doença cardíaca congênita ou válvula artificial?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true,
+          "alerta_sim": true
+        },
+        {
+          "id": "epilepsia",
+          "label": "Epilepsia ou convulsões?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true,
+          "alerta_sim": true
+        },
+        {
+          "id": "problema_pele",
+          "label": "Problema de pele ativo no local?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true,
+          "alerta_sim": true
+        },
+        {
+          "id": "queloide",
+          "label": "Histórico de queloide?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true,
+          "alerta_sim": true
+        },
+        {
+          "id": "gestante",
+          "label": "Está gestante ou amamentando?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true,
+          "alerta_sim": true
+        },
+        {
+          "id": "alcool_drogas",
+          "label": "Sob efeito de álcool ou drogas?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true,
+          "alerta_sim": true
+        },
+        {
+          "id": "alimentacao",
+          "label": "Alimentou-se nas últimas 12 horas?",
+          "tipo": "sim_nao",
+          "obrigatorio": true,
+          "compacto": true
+        },
+        {
+          "id": "detalhamento",
+          "label": "Detalhamento",
+          "tipo": "textarea",
+          "obrigatorio": false,
+          "max": 800,
+          "placeholder": "Descreva condições, medicamentos e alergias que o profissional deve saber."
+        }
+      ]
+    },
+    {
+      "id": "procedimento",
+      "titulo": "Detalhes do procedimento",
+      "rotulo_curto": "Procedimento",
+      "descricao": "Dados da perfuração e da joia utilizada.",
+      "campos": [
+        {
+          "id": "local_piercing",
+          "label": "Local da perfuração",
+          "tipo": "checkbox",
+          "obrigatorio": true,
+          "opcoes": [
+            "Lóbulo",
+            "Hélice",
+            "Tragus",
+            "Septo",
+            "Narina",
+            "Sobrancelha",
+            "Língua",
+            "Umbigo",
+            "Mamilo",
+            "Outro"
+          ]
+        },
+        {
+          "id": "lado",
+          "label": "Lado",
+          "tipo": "select",
+          "obrigatorio": true,
+          "opcoes": ["Direito", "Esquerdo", "Central", "Ambos"]
+        },
+        {
+          "id": "primeira_perfuracao",
+          "label": "É a primeira perfuração neste local?",
+          "tipo": "sim_nao",
+          "obrigatorio": true
+        },
+        {
+          "id": "joia_material",
+          "label": "Material da joia",
+          "tipo": "select",
+          "obrigatorio": true,
+          "opcoes": ["Titânio grau implante", "Aço cirúrgico", "Nióbio", "Ouro 18k", "Outro"]
+        },
+        {
+          "id": "joia_modelo",
+          "label": "Modelo / tamanho da joia",
+          "tipo": "text",
+          "obrigatorio": false,
+          "max": 120,
+          "placeholder": "Ex.: argola 8 mm, 1,2 mm de espessura"
+        },
+        {
+          "id": "profissional",
+          "label": "Profissional responsável",
+          "tipo": "select",
+          "obrigatorio": true,
+          "opcoes_fonte": "profissionais"
+        },
+        {
+          "id": "data_procedimento",
+          "label": "Data do procedimento",
+          "tipo": "date",
+          "obrigatorio": true
+        },
+        {
+          "id": "valor",
+          "label": "Valor do procedimento (R$)",
+          "tipo": "number",
+          "obrigatorio": false,
+          "min": 0
+        },
+        {
+          "id": "observacoes",
+          "label": "Observações",
+          "tipo": "textarea",
+          "obrigatorio": false,
+          "max": 600
+        }
+      ]
+    },
+    {
+      "id": "responsavel_menor",
+      "titulo": "Autorização do responsável legal",
+      "rotulo_curto": "Responsável",
+      "descricao": "Obrigatório para clientes menores de 18 anos. O responsável deve estar presente e apresentar documento.",
+      "condicional": { "tipo": "menor_idade" },
+      "campos": [
+        {
+          "id": "responsavel_nome",
+          "label": "Nome completo do responsável",
+          "tipo": "text",
+          "obrigatorio": true,
+          "max": 120
+        },
+        {
+          "id": "responsavel_cpf",
+          "label": "CPF do responsável",
+          "tipo": "cpf",
+          "obrigatorio": true
+        },
+        {
+          "id": "responsavel_rg",
+          "label": "RG / documento do responsável",
+          "tipo": "text",
+          "obrigatorio": true,
+          "max": 30
+        },
+        {
+          "id": "parentesco",
+          "label": "Parentesco",
+          "tipo": "select",
+          "obrigatorio": true,
+          "opcoes": ["Mãe", "Pai", "Tutor(a) legal", "Avó / Avô", "Outro"]
+        },
+        {
+          "id": "responsavel_telefone",
+          "label": "Telefone do responsável",
+          "tipo": "tel",
+          "obrigatorio": true
+        },
+        {
+          "id": "responsavel_presente",
+          "label": "O responsável está presente no local?",
+          "tipo": "sim_nao",
+          "obrigatorio": true
+        },
+        {
+          "id": "autorizacao_upload",
+          "label": "Autorização assinada + documento com foto",
+          "tipo": "upload",
+          "obrigatorio": true,
+          "max_mb": 10,
+          "aceita": ["image/jpeg", "image/png", "image/webp", "application/pdf"]
+        }
+      ]
+    }
+  ],
+  "consentimentos_extras": [
+    {
+      "id": "autorizo_imagens",
+      "label": "Autorizo o registro fotográfico da perfuração para documentação do procedimento e portfólio do estúdio.",
+      "obrigatorio": true
+    }
+  ],
+  "termo_texto": "Eu autorizo a realização da perfuração corporal descrita nesta ficha, bem como a colocação da joia indicada. Declaro que recebi orientações sobre o procedimento, os riscos e os cuidados de cicatrização.\n\nEstou ciente de que a perfuração é um procedimento invasivo e pode apresentar complicações como dor, edema, sangramento, infecção, rejeição, migração da joia, queloides, cicatrizes e reação alérgica ao metal. Sei que a cicatrização varia de pessoa para pessoa e que o tempo estimado pode não ser cumprido.\n\nComprometo-me a higienizar a região conforme orientação, não manusear a joia com as mãos sujas, não trocar a joia antes do prazo indicado e procurar atendimento médico em caso de sinais de infecção, febre ou dor intensa. Estou ciente de que a remoção da joia pode deixar cicatriz permanente.\n\nDeclaro que as informações de saúde fornecidas são verdadeiras e completas. Se eu for menor de 18 anos, declaro que estou acompanhado(a) do responsável legal, que autoriza a realização do procedimento e assina este documento.\n\nReconheço a validade da assinatura eletrônica como manifestação de vontade, com trilha de auditoria contendo hash do conteúdo, data e hora, IP e dispositivo.",
+  "consentimento_lgpd": "Li e concordo com o tratamento dos meus dados pessoais e dados sensíveis de saúde, nos termos da LGPD (Lei 13.709/2018), para registro do procedimento, cumprimento de obrigações legais e exercício regular de direitos.\n\nOs dados serão armazenados por até {{retencao_anos}} anos, ou pelo prazo legal aplicável, e poderei solicitar acesso, correção ou exclusão pelo e-mail {{email_contato}}. A exclusão pode ser limitada por obrigação legal de guarda. Documentos e imagens serão usados apenas para as finalidades informadas e não serão compartilhados com terceiros sem consentimento, salvo obrigação legal.",
+  "landing_copy": {
+    "headline": "Ficha digital de piercing com autorização de menor inclusa",
+    "subheadline": "O cliente preenche no celular, assina e o PDF cai organizado no seu Drive. Menos papel, mais segurança.",
+    "cta_primario": "Testar grátis por 7 dias",
+    "cta_secundario": "Ver demonstração",
+    "secoes": [
+      "Problema: fichas em papel e autorizações perdidas",
+      "Solução: QR code, ficha no celular e PDF no Drive",
+      "Diferenciais: termo específico para piercing e fluxo de menor",
+      "Planos e preços",
+      "Perguntas frequentes"
+    ],
+    "seo_keywords": [
+      "ficha de anamnese piercing",
+      "termo de consentimento piercing",
+      "ficha digital piercing",
+      "autorização menor piercing"
+    ],
+    "faq": [
+      {
+        "pergunta": "A ficha serve para micropigmentação?",
+        "resposta": "Sim. Você pode ativar ou desativar campos no painel e adaptar o procedimento para micropigmentação."
+      },
+      {
+        "pergunta": "Como funciona a autorização para menor de idade?",
+        "resposta": "A ficha calcula a idade e libera a seção do responsável legal, com CPF, parentesco, documento e assinatura do responsável."
+      },
+      {
+        "pergunta": "O termo é específico para piercing?",
+        "resposta": "Sim. Ele cobre riscos como rejeição, migração, infecção e reação alérgica ao metal."
+      },
+      {
+        "pergunta": "O cliente precisa baixar aplicativo?",
+        "resposta": "Não. A ficha abre direto no navegador do celular."
+      },
+      {
+        "pergunta": "Posso usar a minha logo?",
+        "resposta": "Sim. A ficha e o PDF saem com a identidade do seu estúdio."
+      },
+      {
+        "pergunta": "Onde ficam os arquivos?",
+        "resposta": "Na sua conta do Google Drive, organizados por profissional, mês e cliente."
+      }
+    ]
+  },
+  "onboarding": {
+    "passos": [
+      "Criar conta",
+      "Escolher o template Piercing",
+      "Conectar o Google Drive",
+      "Personalizar a marca",
+      "Gerar o QR code",
+      "Testar uma ficha"
+    ],
+    "tempo_estimado": "8 minutos"
+  },
+  "preco": {
+    "solo": { "valor": 49, "inclui": "1 profissional, fichas ilimitadas, 5 GB" },
+    "estudio": { "valor": 79, "inclui": "até 3 profissionais, 20 GB, relatórios" },
+    "pro": { "valor": 149, "inclui": "ilimitado, trilha de hash, retenção configurável, 100 GB" },
+    "anual": "2 meses grátis"
+  }
+}
