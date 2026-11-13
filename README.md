@@ -6,6 +6,18 @@ Micro-SaaS multi-tenant de **ficha de anamnese + termo de consentimento + assina
 
 ---
 
+## Staging publicado
+
+- Seletor: https://zapfichas.github.io/ficha/
+- Landing tatuagem: https://zapfichas.github.io/ficha/tatuagem/
+- Ficha (tenant): `https://zapfichas.github.io/ficha/tatuagem/write/?t=<slug>`
+- Painel: https://zapfichas.github.io/ficha/dashboard/
+- API: https://fichapro-api.zapfichas.workers.dev
+
+Estado detalhado, pendências de storage/Drive e comandos: [docs/staging.md](docs/staging.md).
+
+---
+
 ## O que já está neste repositório
 
 | Camada | Status | Onde |
@@ -22,7 +34,8 @@ Micro-SaaS multi-tenant de **ficha de anamnese + termo de consentimento + assina
 | Onboarding atômico (tenant + formulário + owner) | ✅ | função `criar_tenant` |
 | Painel do tenant (login, onboarding, fichas, QR, branding, Drive, campos) | ✅ MVP | `apps/painel/` |
 | Billing Stripe + Asaas | 🟡 receptor idempotente de webhooks | `routes/webhooks.ts` |
-| Landing pages por nicho | 🟡 copy nos templates | `landing_copy` |
+| Landing pages por nicho | ✅ estáticas, geradas dos templates | `scripts/build-pages.mjs` |
+| Deploy GitHub Pages | ✅ workflow + Pages Source = Actions | `.github/workflows/pages.yml` |
 
 O fluxo público está **testável localmente em modo demo**, sem Supabase, sem credenciais e sem enviar dados.
 
@@ -55,10 +68,13 @@ No modo demo:
 Testes:
 
 ```bash
-npm test                 # 22 testes (validação, RLS-independent, cripto, PDF)
+npm test                 # 25 testes (validação, URLs, cripto, PDF)
 npm run typecheck        # TypeScript do Worker
-npm run build            # build da ficha + bundle do Worker
+npm run build            # build da ficha + painel + bundle do Worker
 ```
+
+> No staging, o storage ainda não está ativo: R2 não habilitado e Drive não conectado.
+> O botão Google do painel fica oculto até o provider do Supabase Auth ser configurado.
 
 ---
 
@@ -66,7 +82,7 @@ npm run build            # build da ficha + bundle do Worker
 
 ```
 apps/
-  ficha/                 # SPA pública (Vite + JS puro), servida no Cloudflare Pages
+  ficha/                 # SPA pública (Vite + JS puro), GitHub Pages/Cloudflare Pages
   painel/                # painel do tenant (Vite + Supabase Auth + QR)
   api/                   # Cloudflare Worker (Hono + pdf-lib + Supabase)
 packages/
@@ -85,7 +101,7 @@ docs/                    # arquitetura, API, LGPD, runbook, ADRs, fase 0
 
 - **Banco/Auth**: Supabase (Postgres + RLS + Auth + Storage)
 - **Compute**: Cloudflare Workers
-- **Ficha**: Cloudflare Pages (build Vite, saída estática)
+- **Frontends**: GitHub Pages (staging) ou Cloudflare Pages (build Vite estático)
 - **PDF**: `pdf-lib` no Worker
 - **Fila**: Cloudflare Queues
 - **Storage**: Google Drive do cliente (OAuth `drive.file`) ou Cloudflare R2
@@ -102,24 +118,26 @@ Siga o [runbook](docs/runbook.md). Resumo:
 1. Crie o projeto Supabase e rode as migrations (`supabase db push`).
 2. Rode `supabase db reset` localmente ou `npm run templates:sync` no remoto.
 3. Ative o **Custom Access Token Hook** (`public.custom_access_token_hook`).
-4. Crie o bucket R2 `fichapro-fichas` e as filas `fichapro-pdf` / `fichapro-pdf-dlq`.
+4. Crie as filas `fichapro-pdf` / `fichapro-pdf-dlq` e, se for usar R2, o bucket `fichapro-fichas`.
 5. Configure os secrets do Worker (`wrangler secret put ...`).
 6. Crie o OAuth Client do Google (Drive) e cadastre a redirect URI.
-7. Faça deploy do Worker e do Pages.
-8. Faça o smoke test de uma ficha de teste.
+7. Faça deploy do Worker.
+8. Configure `FICHA_URL_TEMPLATE`/`PANEL_URL` e publique o site (`node scripts/build-pages.mjs`).
+9. No GitHub, deixe Pages → Source = **GitHub Actions**.
+10. Faça o smoke test de uma ficha de teste.
 
 ```bash
 # Worker
 cd apps/api
 npx wrangler queues create fichapro-pdf
 npx wrangler queues create fichapro-pdf-dlq
-npx wrangler r2 bucket create fichapro-fichas
+# R2 opcional: habilite no dashboard e descomente o binding no wrangler.toml
 npx wrangler secret put DATA_ENCRYPTION_KEY
 npx wrangler deploy
 
-# Ficha
-npm run build -w @fichapro/ficha
-# publique apps/ficha/dist no Cloudflare Pages
+# Site (GitHub Pages / Cloudflare Pages)
+node --env-file=.env.staging scripts/build-pages.mjs
+# publique ./site no Cloudflare Pages, ou deixe o workflow pages.yml publicar no GitHub Pages
 ```
 
 > **Nunca comite** `.dev.vars`, `.env`, chaves de criptografia ou tokens OAuth.
@@ -140,6 +158,7 @@ npm run build -w @fichapro/ficha
 
 ## Documentação
 
+- [Staging atual](docs/staging.md)
 - [Arquitetura](docs/arquitetura.md)
 - [API](docs/api.md)
 - [Segurança e LGPD](docs/seguranca-lgpd.md)

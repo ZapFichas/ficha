@@ -60,6 +60,9 @@ Uma entrega só entra em produção quando todos os itens abaixo estiverem marca
 - [ ] Staging (ou preview) com smoke test.
 - [ ] Migrations aplicadas antes do Worker.
 - [ ] Secrets conferidos.
+- [ ] GitHub Pages com Source = **GitHub Actions** e workflow passando.
+- [ ] `FICHA_URL_TEMPLATE`/`PANEL_URL` conferidos no Worker.
+- [ ] Storage escolhido e testado (Drive conectado ou R2 habilitado).
 - [ ] Rollback documentado (redeploy anterior + migration reversível).
 - [ ] Aprovação do orquestrador (produto) e do responsável técnico.
 

@@ -154,8 +154,8 @@ Não expõe dados pessoais.
 {
   "usuario": { "id": "uuid", "email": "dono@estudio.com", "tenantId": "uuid", "role": "owner", "nome": "Dono" },
   "tenant": { "id": "uuid", "slug": "estudio-exemplo", "nome_negocio": "...", "plano": "solo", "status": "trial", "branding": {}, "retencao_anos": 5 },
-  "link_ficha": "https://app/f/estudio-exemplo",
-  "painel_url": "https://app/painel"
+  "link_ficha": "https://zapfichas.github.io/ficha/tatuagem/write/?t=estudio-exemplo",
+  "painel_url": "https://zapfichas.github.io/ficha/dashboard/"
 }
 ```
 
@@ -210,6 +210,9 @@ Faz streaming do PDF autenticado. `409` se ainda estiver processando.
 
 Retorna o formulário ativo e o template completo (para a tela de configuração de campos).
 
+> Se `FICHA_URL_TEMPLATE` estiver definido, os links de ficha usam `{nicho}` e `{slug}`, por exemplo:
+> `https://zapfichas.github.io/ficha/{nicho}/write/?t={slug}`.
+
 ### `PATCH /api/panel/formulario` (owner)
 
 ```json
@@ -260,8 +263,8 @@ Cria tenant + formulário + usuário owner em **uma transação** (função SQL 
   "formulario_id": "uuid",
   "template_slug": "tatuagem",
   "status": "trial",
-  "link_ficha": "https://app/f/estudio-exemplo",
-  "painel_url": "https://app/painel"
+  "link_ficha": "https://zapfichas.github.io/ficha/tatuagem/write/?t=estudio-exemplo",
+  "painel_url": "https://zapfichas.github.io/ficha/dashboard/"
 }
 ```
 
@@ -291,13 +294,22 @@ Redirecione o navegador para `url`.
 
 ### `GET /api/drive/oauth/callback`
 
-Recebe `code` + `state`, troca por tokens, cria a pasta raiz e grava o refresh token criptografado. Redireciona para `APP_URL/painel/configuracoes?drive=conectado|erro`.
+Recebe `code` + `state`, troca por tokens, cria a pasta raiz e grava o refresh token criptografado. Redireciona para `PANEL_URL?drive=conectado|erro`.
 
 ### `GET /api/drive/status` (Bearer)
 
 ```json
-{ "conectado": true, "storage_mode": "drive", "folder_id": "...", "email": null, "atualizado_em": "..." }
+{
+  "conectado": true,
+  "storage_mode": "drive",
+  "r2_configurado": false,
+  "folder_id": "...",
+  "email": null,
+  "atualizado_em": "..."
+}
 ```
+
+`r2_configurado` indica se o binding `FICHAS_BUCKET` existe no Worker. Se `conectado=false` e `r2_configurado=false`, não há storage disponível para o PDF.
 
 ### `POST /api/drive/desconectar` (owner)
 

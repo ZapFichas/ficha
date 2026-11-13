@@ -1,4 +1,4 @@
-﻿import { Hono } from "hono";
+import { Hono } from "hono";
 import type { AppEnv } from "../env.js";
 import { exigirAutenticacao, obterUsuarioDoToken, tokenDoHeader } from "../lib/auth.js";
 import { enviarBoasVindas } from "../lib/email.js";
@@ -25,17 +25,17 @@ rotasOnboarding.post("/check-slug", async (c) => {
 
 rotasOnboarding.post("/criar", async (c) => {
   const token = tokenDoHeader(c.req.header("Authorization"));
-  if (!token) return c.json({ erro: "NÃ£o autenticado." }, 401);
+  if (!token) return c.json({ erro: "Não autenticado." }, 401);
 
   const usuario = await obterUsuarioDoToken(c.env, token);
-  if (!usuario?.email) return c.json({ erro: "SessÃ£o invÃ¡lida." }, 401);
+  if (!usuario?.email) return c.json({ erro: "Sessão inválida." }, 401);
 
   const corpo = await c.req.json().catch(() => null);
   const parsed = onboardingSchema.safeParse(corpo);
   if (!parsed.success) {
     return c.json(
       {
-        erro: "Dados invÃ¡lidos.",
+        erro: "Dados inválidos.",
         detalhes: Object.fromEntries(
           parsed.error.issues.map((i) => [i.path.join("."), i.message])
         ),
@@ -60,16 +60,16 @@ rotasOnboarding.post("/criar", async (c) => {
   if (error) {
     const mensagem = error.message ?? "";
     if (error.code === "23505" && mensagem.includes("usuario_ja_vinculado")) {
-      return c.json({ erro: "Sua conta jÃ¡ estÃ¡ vinculada a um estabelecimento." }, 409);
+      return c.json({ erro: "Sua conta já está vinculada a um estabelecimento." }, 409);
     }
     if (error.code === "23505") {
-      return c.json({ erro: "Este link jÃ¡ estÃ¡ em uso. Escolha outro." }, 409);
+      return c.json({ erro: "Este link já está em uso. Escolha outro." }, 409);
     }
     if (mensagem.includes("template_inexistente")) {
-      return c.json({ erro: "Template indisponÃ­vel para este nicho." }, 422);
+      return c.json({ erro: "Template indisponível para este nicho." }, 422);
     }
     console.error("Erro no onboarding:", error);
-    return c.json({ erro: "NÃ£o foi possÃ­vel criar o estabelecimento." }, 500);
+    return c.json({ erro: "Não foi possível criar o estabelecimento." }, 500);
   }
 
   const resultado = data as {
@@ -105,10 +105,10 @@ rotasOnboarding.post("/criar", async (c) => {
 
 rotasOnboarding.get("/status", async (c) => {
   const token = tokenDoHeader(c.req.header("Authorization"));
-  if (!token) return c.json({ erro: "NÃ£o autenticado." }, 401);
+  if (!token) return c.json({ erro: "Não autenticado." }, 401);
 
   const usuario = await obterUsuarioDoToken(c.env, token);
-  if (!usuario) return c.json({ erro: "SessÃ£o invÃ¡lida." }, 401);
+  if (!usuario) return c.json({ erro: "Sessão inválida." }, 401);
 
   const db = clienteUsuario(c.env, token);
   const { data: registro } = await db
@@ -144,6 +144,6 @@ rotasOnboarding.post("/concluir", exigirAutenticacao, async (c) => {
     .update({ onboarding_concluido_em: new Date().toISOString() })
     .eq("id", usuario.tenantId);
 
-  if (error) return c.json({ erro: "NÃ£o foi possÃ­vel concluir o onboarding." }, 500);
+  if (error) return c.json({ erro: "Não foi possível concluir o onboarding." }, 500);
   return c.json({ ok: true });
 });

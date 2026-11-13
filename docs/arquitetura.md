@@ -6,7 +6,7 @@
 flowchart LR
   subgraph Cliente
     QR[QR code / link]
-    Ficha[Ficha SPA<br/>Cloudflare Pages]
+    Ficha[Ficha SPA<br/>GitHub Pages / Cloudflare Pages]
   end
 
   subgraph Edge["Cloudflare"]
@@ -151,6 +151,17 @@ interface StorageAdapter {
 - **R2**: chave `${tenantId}/${fichaId}/${arquivo}`.
 - **Drive**: pasta `FichaPro - {negócio}` → `AAAA-MM` → arquivo. Escopo `drive.file` (o app só vê o que criou).
 - Se o Drive falhar ou for desconectado, o tenant pode voltar para R2 (plano pago) sem mudar o código da ficha.
+- No staging atual, o R2 ainda não foi habilitado e o Drive ainda não foi conectado; por isso o job de PDF falha com mensagem explícita até um dos dois ser configurado.
+
+## Frontends estáticos
+
+- A ficha, o painel e as landings são gerados por `scripts/build-pages.mjs`.
+- No staging, o GitHub Pages publica:
+  - `/ficha/<nicho>/` — landing;
+  - `/ficha/<nicho>/write/?t=<slug>` — ficha;
+  - `/ficha/dashboard/` — painel.
+- `FICHA_URL_TEMPLATE` no Worker monta o QR por nicho/slug.
+- Cloudflare Pages continua suportado; os apps usam `base: "./"` e `public/_redirects`.
 
 ## Assíncrono e resiliência
 
@@ -184,3 +195,5 @@ Sentry é chamado via Envelope API sem SDK. Alertas recomendados:
 - Billing tem receptor idempotente e mapeamento por `metadata.tenant_id`, mas o fluxo completo de checkout/dunning é o próximo incremento.
 - Expurgo apaga linhas do banco; a limpeza dos objetos no storage precisa de lifecycle rule (R2) ou é responsabilidade do cliente no Drive.
 - Não há ICP-Brasil; a assinatura é eletrônica simples com trilha de auditoria.
+- No staging, o botão Google do painel está oculto (`VITE_GOOGLE_AUTH=0`) até o provider Google do Supabase Auth ser configurado.
+- O storage de PDF do staging está pendente: R2 não habilitado e Drive não conectado. Ver [docs/staging.md](staging.md).

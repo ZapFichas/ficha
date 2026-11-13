@@ -17,6 +17,7 @@ import {
 import "./styles.css";
 
 const app = document.getElementById("app");
+const GOOGLE_AUTH = import.meta.env.VITE_GOOGLE_AUTH === "1";
 
 const state = {
   session: null,
@@ -166,15 +167,17 @@ function renderAuth(tab = state.authTab, mensagem = "") {
     grupo("Senha", senha),
     erro,
     botao,
-    h(
-      "button",
-      {
-        type: "button",
-        class: "btn-painel btn-secundario-painel",
-        on: { click: () => loginGoogle() },
-      },
-      "Continuar com Google"
-    ),
+    GOOGLE_AUTH
+      ? h(
+          "button",
+          {
+            type: "button",
+            class: "btn-painel btn-secundario-painel",
+            on: { click: () => loginGoogle() },
+          },
+          "Continuar com Google"
+        )
+      : null,
     tab === "login"
       ? h(
           "button",
@@ -1243,9 +1246,11 @@ async function carregarDrive() {
           { class: "muted" },
           drive.conectado
             ? `Pasta: ${drive.folder_id ?? "—"}`
-            : drive.storage_mode === "r2"
+            : drive.storage_mode === "r2" && drive.r2_configurado
               ? "Armazenamento atual: Cloudflare R2."
-              : "Drive não conectado. Os PDFs usam o R2 como fallback até você conectar."
+              : drive.r2_configurado
+                ? "Drive não conectado. Os PDFs usam o R2 como fallback até você conectar."
+                : "Drive não conectado e R2 não configurado. Conecte o Google Drive para gerar PDFs."
         )
       )
     );

@@ -77,8 +77,13 @@ Isso injeta `tenant_id` e `tenant_role` no JWT. Mesmo sem o hook, o RLS funciona
   - `http://localhost:4173/**`
   - `http://localhost:4174/**`
 - Habilitar e-mail/senha e Google OAuth (se quiser login social).
-- Para testes rápidos, desative “Confirm email”; em produção, mantenha ativo.
+- Para testes rápidos, desative "Confirm email"; em produção, mantenha ativo.
 - Personalize os templates de e-mail de confirmação/recuperação.
+
+No staging atual:
+
+- **Site URL**: `https://zapfichas.github.io/ficha/dashboard/`
+- **Redirect URLs**: as landings, os caminhos `/write/**` de cada nicho e `localhost:5173/5174`.
 
 ### 1.6 Teste de RLS (obrigatório)
 
@@ -144,10 +149,11 @@ Variáveis não secretas (`APP_URL`, `FICHA_URL`, `PANEL_URL`, `ENVIRONMENT`) fi
 APP_URL = "https://app.seudominio.com"
 FICHA_URL = "https://app.seudominio.com"
 PANEL_URL = "https://painel.seudominio.com"   # ou https://app.seudominio.com/painel
+FICHA_URL_TEMPLATE = "https://app.seudominio.com/{nicho}/write/?t={slug}"
 ENVIRONMENT = "production"
 ```
 
-`FICHA_URL` é usada no link/QR do cliente. `PANEL_URL` é usada no retorno do OAuth do Drive e nos links do onboarding.
+`FICHA_URL_TEMPLATE` é opcional. Sem ele, o link é `FICHA_URL/f/{slug}`. Com ele, `{nicho}` e `{slug}` são substituídos — necessário para GitHub Pages ou sites estáticos com caminho por nicho. `PANEL_URL` é usada no retorno do OAuth do Drive e nos links do onboarding.
 
 ### 2.3 Deploy
 
@@ -174,6 +180,7 @@ curl https://SEU-WORKER.workers.dev/health
    - adicione usuários de teste enquanto o app não estiver verificado.
 3. **Credentials → Create credentials → OAuth client ID → Web application**.
 4. Authorized redirect URI:
+   - staging: `https://fichapro-api.zapfichas.workers.dev/api/drive/oauth/callback`
    - produção: `https://SEU-WORKER.workers.dev/api/drive/oauth/callback`
    - local: `http://localhost:8787/api/drive/oauth/callback`
 5. Preencha `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` e `GOOGLE_OAUTH_REDIRECT_URI`.
@@ -189,52 +196,78 @@ Se o refresh token expirar/revogar:
 
 ---
 
-## 4. Cloudflare Pages (ficha)
+## 4. Frontends (GitHub Pages)
+
+O staging usa GitHub Pages para ficha, painel e landings. O build junta tudo em `site/`.
+
+### 4.1 Build local
 
 ```bash
-npm run build -w @fichapro/ficha
+node --env-file=.env.staging scripts/build-pages.mjs
 ```
 
-Publique `apps/ficha/dist` no Pages:
+Variáveis usadas:
 
-- Build command: `npm run build -w @fichapro/ficha`
-- Output directory: `apps/ficha/dist`
-- Root directory: raiz do repo
-- Variável de build: `VITE_API_BASE=https://SEU-WORKER.workers.dev`
-- SPA fallback: o arquivo `public/_redirects` já contém `/* /index.html 200`.
+- `VITE_API_BASE=https://SEU-WORKER.workers.dev`
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY` (chave pública, protegida por RLS)
+- `PANEL_URL=https://zapfichas.github.io/ficha/dashboard/`
 
-Para apontar a API sem rebuild, defina antes do bundle:
+Estrutura gerada:
 
-```html
-<script>
-  window.__FICHA_CONFIG__ = { apiBase: "https://SEU-WORKER.workers.dev" };
-</script>
+```text
+site/
+  index.html
+  tatuagem/index.html          # landing
+  tatuagem/write/index.html    # ficha (?t=slug)
+  piercing/...
+  estetica/...
+  fitness/...
+  dashboard/index.html         # painel
+  404.html
 ```
 
-Domínios por nicho:
+### 4.2 Publicar
 
-- `fichadetatuador.com.br` → landing + CTA para o app;
-- `app.seudominio.com/f/{slug}` → ficha.
+1. GitHub → Settings → Pages → Build and deployment → Source: **GitHub Actions**.
+2. O workflow `.github/workflows/pages.yml` roda em push para `main` e publica `site/`.
+3. Para republicar sem commit: Actions → Deploy GitHub Pages → Run workflow.
 
-### 4.1 Painel (Cloudflare Pages)
+O diretório `site/` está no `.gitignore`; o artefato é gerado no CI.
 
-```bash
-npm run build -w @fichapro/painel
+### 4.3 URLs e link por tenant
+
+No Worker (`apps/api/wrangler.toml`):
+
+```toml
+[vars]
+APP_URL = "https://zapfichas.github.io/ficha/tatuagem"
+FICHA_URL = "https://zapfichas.github.io/ficha/tatuagem/write"
+PANEL_URL = "https://zapfichas.github.io/ficha/dashboard"
+FICHA_URL_TEMPLATE = "https://zapfichas.github.io/ficha/{nicho}/write/?t={slug}"
+ENVIRONMENT = "staging"
 ```
 
-Publique `apps/painel/dist` em um projeto Pages separado (recomendado `painel.seudominio.com`):
+O QR code por tenant vira:
 
-- Build command: `npm run build -w @fichapro/painel`
-- Output directory: `apps/painel/dist`
-- Root directory: raiz do repo
-- Variáveis de build:
-  - `VITE_SUPABASE_URL`
-  - `VITE_SUPABASE_ANON_KEY`
-  - `VITE_API_BASE=https://SEU-WORKER.workers.dev`
-- `public/_redirects` já cobre as rotas da SPA.
-- Ajuste `PANEL_URL` no Worker para o domínio do painel.
+```text
+https://zapfichas.github.io/ficha/tatuagem/write/?t=estudio-aurora
+```
 
-Alternativa: servir o painel em `app.seudominio.com/painel` exige `base: "/painel/"` no `vite.config.js` e um rewrite no Pages. O subdomínio separado é menos sujeito a erro.
+O app da ficha lê `t`, `slug` ou `tenant` da query string. Para demonstração:
+`.../write/?demo=1&nicho=tatuagem`.
+
+### 4.4 Cloudflare Pages (alternativa)
+
+Os dois apps usam `base: "./"` e podem ser publicados em Pages:
+
+- ficha: build `npm run build -w @fichapro/ficha`, output `apps/ficha/dist`;
+- painel: build `npm run build -w @fichapro/painel`, output `apps/painel/dist`;
+- `public/_redirects` cobre rotas de SPA;
+- ajuste `FICHA_URL`/`PANEL_URL` e remova `FICHA_URL_TEMPLATE` se voltar ao formato `/f/{slug}`.
+
+Não misture as duas origens para o mesmo tenant no mesmo QR code.
+
 
 ---
 
@@ -272,7 +305,7 @@ O Worker registra cada evento em `webhook_eventos` e é idempotente.
 
 1. `GET /health` responde `ok`.
 2. Criar conta no painel e concluir o onboarding (nome, slug, nicho).
-3. Abrir `https://app/f/{slug}` em um celular.
+3. Abrir `https://zapfichas.github.io/ficha/{nicho}/write/?t={slug}` em um celular.
 4. Preencher e assinar uma ficha de teste.
 5. Conferir no banco:
 
@@ -281,7 +314,7 @@ select protocolo, status, hash_pdf, drive_file_id, r2_key, tentativas_pdf
 from public.fichas order by criado_em desc limit 1;
 ```
 
-6. Conferir o PDF no Drive/R2.
+6. Conferir o PDF no Drive/R2. Se `status = erro` e `erro_ultimo` citar R2/Drive, resolva o storage antes de reprocessar.
 7. Conferir os eventos:
 
 ```sql
@@ -301,6 +334,8 @@ select tipo, criado_em from public.eventos order by criado_em desc limit 10;
 |---|---|---|
 | `DATA_ENCRYPTION_KEY inválida` | chave não tem 32 bytes | gerar com `openssl rand -base64 32` |
 | Ficha salva, PDF não gera | fila/consumer não deployado | `wrangler queues list`, logs do Worker |
+| `Cloudflare R2 não configurado` | R2 não habilitado e Drive desconectado | habilitar R2/criar bucket ou conectar o Drive |
+| `Please enable R2` (10042) | R2 não habilitado na conta | Dashboard → R2 → Enable R2 |
 | `ERRO 23505` ao criar tenant | slug em uso | escolher outro slug |
 | Painel não vê nada | JWT sem vínculo em `usuarios` | onboarding ou conferir hook/fallback |
 | `tenant_secrets` vazio no painel | RLS bloqueia authenticated | esperado; usar `/api/drive/status` |
@@ -334,14 +369,15 @@ npx wrangler tail
 - [ ] Migrations aplicadas e seed conferido.
 - [ ] Hook de JWT ativo.
 - [ ] RLS testado com dois tenants.
-- [ ] Bucket privado, policies e lifecycle.
+- [ ] Storage escolhido: Google Drive conectado **ou** R2 habilitado com bucket privado.
 - [ ] Filas e DLQ criadas.
 - [ ] Secrets configurados (nenhum no git).
-- [ ] OAuth do Drive testado com uma conta real.
+- [ ] OAuth do Drive testado com uma conta real (se usar Drive).
 - [ ] Worker deployado e `/health` ok.
-- [ ] Pages deployado e `_redirects` funcionando.
+- [ ] GitHub Pages com Source = **GitHub Actions** e workflow passando.
 - [ ] Painel deployado com `VITE_SUPABASE_*` e `VITE_API_BASE`.
-- [ ] `PANEL_URL` e `FICHA_URL` conferidos no Worker.
+- [ ] `PANEL_URL`, `FICHA_URL` e `FICHA_URL_TEMPLATE` conferidos no Worker.
+- [ ] Provider Google do Supabase Auth configurado (se `VITE_GOOGLE_AUTH=1`).
 - [ ] E-mail de boas-vindas testado.
 - [ ] Sentry recebendo um erro de teste.
 - [ ] Termo/LGPD revisados.

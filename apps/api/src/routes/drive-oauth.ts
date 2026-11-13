@@ -1,4 +1,4 @@
-﻿import { Hono } from "hono";
+import { Hono } from "hono";
 import { SignJWT, jwtVerify } from "jose";
 import type { AppEnv } from "../env.js";
 import { exigirAutenticacao, exigirOwner } from "../lib/auth.js";
@@ -13,7 +13,7 @@ const ESCOPO = "https://www.googleapis.com/auth/drive.file";
 
 function segredoState(env: AppEnv["Bindings"]): Uint8Array {
   const segredo = env.OAUTH_STATE_SECRET || env.CPF_HASH_PEPPER;
-  if (!segredo) throw new Error("OAUTH_STATE_SECRET nÃ£o configurado.");
+  if (!segredo) throw new Error("OAUTH_STATE_SECRET não configurado.");
   return new TextEncoder().encode(segredo);
 }
 
@@ -24,7 +24,7 @@ function redirectUri(env: AppEnv["Bindings"], origem: string): string {
 rotasDrive.get("/oauth/start", exigirAutenticacao, async (c) => {
   if (!c.env.GOOGLE_CLIENT_ID || !c.env.GOOGLE_CLIENT_SECRET) {
     return c.json(
-      { erro: "A conexÃ£o com o Google Drive ainda nÃ£o estÃ¡ disponÃ­vel." },
+      { erro: "A conexão com o Google Drive ainda não está disponível." },
       503
     );
   }
@@ -154,6 +154,7 @@ rotasDrive.get("/status", exigirAutenticacao, async (c) => {
   return c.json({
     conectado: Boolean(segredos?.drive_refresh_token_enc),
     storage_mode: tenant?.storage_mode ?? "r2",
+    r2_configurado: Boolean(c.env.FICHAS_BUCKET),
     folder_id: segredos?.drive_folder_id ?? null,
     email: segredos?.drive_email ?? null,
     atualizado_em: segredos?.atualizado_em ?? null,
@@ -177,7 +178,7 @@ rotasDrive.post("/desconectar", exigirAutenticacao, exigirOwner(), async (c) => 
     .eq("tenant_id", usuario.tenantId);
 
   if (erroSegredos) {
-    return c.json({ erro: "NÃ£o foi possÃ­vel desconectar o Drive." }, 500);
+    return c.json({ erro: "Não foi possível desconectar o Drive." }, 500);
   }
 
   await admin
