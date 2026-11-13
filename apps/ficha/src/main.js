@@ -81,10 +81,19 @@ function montarSeletorDemo() {
 }
 
 function obterSlug() {
+  const query = new URLSearchParams(window.location.search);
+  const direto = query.get("t") ?? query.get("slug") ?? query.get("tenant");
+  if (direto) return direto;
+
   const partes = window.location.pathname.split("/").filter(Boolean);
   if (partes[0] === "f" && partes[1]) return decodeURIComponent(partes[1]);
-  const query = new URLSearchParams(window.location.search);
-  return query.get("slug") ?? query.get("tenant");
+
+  // Entradas estáticas do GitHub Pages: /ficha/<nicho>/write/?demo=1&nicho=<nicho>
+  if (query.get("demo") === "1") {
+    return `demo-${query.get("nicho") ?? "tatuagem"}`;
+  }
+
+  return null;
 }
 
 async function iniciar() {

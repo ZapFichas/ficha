@@ -12,5 +12,6 @@ Thumbs.db
 coverage/
 .vite/
 .tmp/
+site/
 supabase/.temp/
 supabase/.branches/

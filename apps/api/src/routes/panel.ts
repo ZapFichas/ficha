@@ -32,7 +32,7 @@ rotasPainel.get("/me", async (c) => {
   return c.json({
     usuario,
     tenant,
-    link_ficha: urlFicha(c.env, tenant.slug),
+    link_ficha: urlFicha(c.env, tenant.slug, tenant.nicho_slug),
     painel_url: urlPainel(c.env),
   });
 });

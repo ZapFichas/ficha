@@ -18,9 +18,10 @@ export interface Env {
   APP_URL: string;
   FICHA_URL?: string;
   PANEL_URL?: string;
+  FICHA_URL_TEMPLATE?: string;
   ENVIRONMENT?: string;
 
-  FICHAS_BUCKET: R2Bucket;
+  FICHAS_BUCKET?: R2Bucket;
   PDF_QUEUE: Queue<PdfJob>;
 
   GOOGLE_CLIENT_ID?: string;

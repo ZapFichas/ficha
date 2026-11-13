@@ -32,6 +32,11 @@ export class R2Storage implements StorageAdapter {
   constructor(private readonly env: Env) {}
 
   async upload(entrada: EntradaUpload): Promise<ResultadoUpload> {
+    if (!this.env.FICHAS_BUCKET) {
+      throw new Error(
+        "Cloudflare R2 não configurado. Conecte o Google Drive ou habilite o bucket R2."
+      );
+    }
     await this.env.FICHAS_BUCKET.put(entrada.key, entrada.bytes, {
       httpMetadata: { contentType: entrada.contentType },
       customMetadata: { nome: entrada.fileName },
@@ -40,7 +45,7 @@ export class R2Storage implements StorageAdapter {
   }
 
   async download(ref: { key?: string | null }) {
-    if (!ref.key) return null;
+    if (!ref.key || !this.env.FICHAS_BUCKET) return null;
     const objeto = await this.env.FICHAS_BUCKET.get(ref.key);
     if (!objeto) return null;
     return {
@@ -50,7 +55,7 @@ export class R2Storage implements StorageAdapter {
   }
 
   async delete(ref: { key?: string | null }) {
-    if (ref.key) await this.env.FICHAS_BUCKET.delete(ref.key);
+    if (ref.key && this.env.FICHAS_BUCKET) await this.env.FICHAS_BUCKET.delete(ref.key);
   }
 }
 

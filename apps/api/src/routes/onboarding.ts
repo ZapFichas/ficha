@@ -80,7 +80,7 @@ rotasOnboarding.post("/criar", async (c) => {
     status: string;
   };
 
-  const linkFicha = urlFicha(c.env, resultado.slug);
+  const linkFicha = urlFicha(c.env, resultado.slug, resultado.template_slug);
   const linkPainel = urlPainel(c.env);
 
   c.executionCtx.waitUntil(
@@ -132,7 +132,7 @@ rotasOnboarding.get("/status", async (c) => {
     tenant_id: registro.tenant_id,
     role: registro.role,
     tenant,
-    link_ficha: tenant ? urlFicha(c.env, tenant.slug) : null,
+    link_ficha: tenant ? urlFicha(c.env, tenant.slug, tenant.nicho_slug) : null,
   });
 });
 

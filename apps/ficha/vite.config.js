@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import { fileURLToPath, URL } from "node:url";
 
 export default defineConfig({
+  base: "./",
   server: {
     fs: {
       // Permite importar os templates do monorepo em modo demo.

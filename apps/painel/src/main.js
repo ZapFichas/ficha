@@ -1483,6 +1483,10 @@ function renderOnboarding(status) {
     { class: "entrada-painel", id: "onb-nicho" },
     ...NICHOS.map((n) => h("option", { value: n.slug }, n.nome))
   );
+  const nichoParam = new URLSearchParams(window.location.search).get("nicho");
+  if (nichoParam && NICHOS.some((n) => n.slug === nichoParam)) {
+    nicho.value = nichoParam;
+  }
   const cor = h("input", { class: "entrada-painel entrada-cor", type: "color", value: "#4F7963", id: "onb-cor" });
   const slugStatus = h("small", { class: "campo-painel-hint", id: "onb-slug-status" }, "O link da ficha será /f/{slug}.");
   const erro = h("div", { class: "auth-erro", role: "alert", hidden: true });

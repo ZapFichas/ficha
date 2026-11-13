@@ -5,14 +5,17 @@ compatibility_flags = ["nodejs_compat"]
 workers_dev = true
 
 [vars]
-APP_URL = "http://localhost:5173"
-FICHA_URL = "http://localhost:5173"
-PANEL_URL = "http://localhost:5174"
-ENVIRONMENT = "development"
+APP_URL = "https://zapfichas.github.io/ficha/tattoo"
+FICHA_URL = "https://zapfichas.github.io/ficha/tattoo/write"
+PANEL_URL = "https://zapfichas.github.io/ficha/dashboard"
+FICHA_URL_TEMPLATE = "https://zapfichas.github.io/ficha/{nicho}/write/?t={slug}"
+ENVIRONMENT = "staging"
 
-[[r2_buckets]]
-binding = "FICHAS_BUCKET"
-bucket_name = "fichapro-fichas"
+# R2 ainda não habilitado na conta Cloudflare (código 10042).
+# Após habilitar no dashboard e criar o bucket, descomente:
+# [[r2_buckets]]
+# binding = "FICHAS_BUCKET"
+# bucket_name = "fichapro-fichas"
 
 [[queues.producers]]
 binding = "PDF_QUEUE"
