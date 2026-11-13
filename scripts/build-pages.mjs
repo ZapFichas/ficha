@@ -22,6 +22,8 @@ import {
 } from "node:fs";
 import { resolve } from "node:path";
 
+import { PLANOS, SUPORTE_WHATSAPP } from "../packages/shared/src/index.js";
+
 const RAIZ = resolve(".");
 const SITE = resolve("site");
 
@@ -101,7 +103,7 @@ function renderLanding(template, nicho, alias) {
         id: chave,
         nome: chave === "solo" ? "Solo" : chave === "estudio" ? "Estúdio" : "Pro",
         valor: plano.valor,
-        inclui: plano.inclui,
+        inclui: PLANOS[chave]?.resumo ?? plano.inclui,
         destaque: chave === "estudio",
         indice,
       };
@@ -312,7 +314,7 @@ function renderLanding(template, nicho, alias) {
     <div class="wrap faixa-grid">
       <span>Sem app para o cliente</span>
       <span>PDF no seu Drive</span>
-      <span>Assinatura com trilha</span>
+      <span>Assinatura com registro seguro</span>
       <span>LGPD e menor de idade</span>
     </div>
   </div>
@@ -330,11 +332,11 @@ function renderLanding(template, nicho, alias) {
     <section id="como">
       <div class="secao-topo">
         <p class="kicker">A solução</p>
-        <h2>Uma engine, quatro coisas resolvidas.</h2>
+        <h2>Uma ficha, quatro problemas resolvidos.</h2>
         <p>O cliente faz tudo no celular. O profissional recebe o registro pronto, com prova de assinatura.</p>
       </div>
       <div class="cards">
-        <article class="card"><div class="icone">✍️</div><h3>Assinatura digital</h3><p>Canvas com dedo, caneta ou mouse. Hash SHA-256 do conteúdo, data/hora, IP e dispositivo.</p></article>
+        <article class="card"><div class="icone">✍️</div><h3>Assinatura digital</h3><p>Canvas com dedo, caneta ou mouse. Registro de segurança com identificação do conteúdo, data, hora e dispositivo.</p></article>
         <article class="card"><div class="icone">📄</div><h3>PDF automático</h3><p>Documento organizado por profissional e mês. Vai para o Google Drive do estúdio, não para uma caixa de e-mail.</p></article>
         <article class="card"><div class="icone">🔒</div><h3>LGPD e menor</h3><p>Termo, consentimento LGPD e autorização do responsável com assinatura. Retenção configurável.</p></article>
       </div>
@@ -377,7 +379,8 @@ function renderLanding(template, nicho, alias) {
       </div>
       <div>
         <a href="${esc(linkPainel)}">Acessar o painel</a><br />
-        <a href="./write/?demo=1&nicho=${encodeURIComponent(nicho.slug)}">Ver ficha de demonstração</a>
+        <a href="./write/?demo=1&nicho=${encodeURIComponent(nicho.slug)}">Ver ficha de demonstração</a><br />
+        <a href="${esc(SUPORTE_WHATSAPP.url("Olá! Preciso de ajuda com o FichaPro."))}" target="_blank" rel="noopener noreferrer">Suporte: ${esc(SUPORTE_WHATSAPP.exibicao)}</a>
       </div>
     </div>
   </footer>
@@ -439,15 +442,138 @@ function renderRaiz() {
   <div class="wrap">
     <header class="topo">
       <p class="kicker">FichaPro · staging</p>
-      <h1>Uma engine, quatro nichos.</h1>
+      <h1>Uma ficha para cada especialidade.</h1>
       <p>Landing pages e fichas de demonstração. O painel do estúdio fica em <a href="./dashboard/"><strong>/dashboard/</strong></a>.</p>
     </header>
     <div class="grid">${cards}</div>
     <footer class="rodape">
       <p>Ferramenta de registro e assinatura eletrônica. Não substitui avaliação profissional.</p>
-      <p><a href="./dashboard/">Acessar o painel</a> · <a href="./tatuagem/">Landing de tatuagem</a></p>
+      <p><a href="./dashboard/">Acessar o painel</a> · <a href="./tatuagem/">Landing de tatuagem</a> · <a href="${esc(SUPORTE_WHATSAPP.url("Olá! Preciso de ajuda com o FichaPro."))}" target="_blank" rel="noopener noreferrer">Suporte ${esc(SUPORTE_WHATSAPP.exibicao)}</a></p>
     </footer>
   </div>
+</body>
+</html>`;
+}
+
+function renderComplemento() {
+  return `<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Enviar documentação · FichaPro</title>
+<style>
+  :root{--verde:#2f6f55;--texto:#17241d;--suave:#5c7166;--fundo:#eef4f0;--painel:#fff;--borda:#d5e2da;--erro:#a92f2f}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:radial-gradient(900px 420px at 10% -10%,rgba(79,121,99,.16),transparent 60%),var(--fundo);color:var(--texto);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.55}
+  .wrap{max-width:560px;margin:0 auto;padding:48px 20px 60px}
+  .marca{font-family:Georgia,serif;font-size:22px;letter-spacing:.3px;margin-bottom:22px;color:var(--verde)}
+  .card{background:var(--painel);border:1px solid var(--borda);border-radius:16px;padding:26px 24px;box-shadow:0 18px 50px rgba(23,36,29,.08)}
+  h1{font-family:Georgia,serif;font-size:31px;font-weight:400;line-height:1.1;margin:0 0 8px}
+  p{margin:0 0 12px;color:var(--suave);font-size:14px}
+  .protocolo{display:inline-block;font-family:ui-monospace,Menlo,monospace;font-size:12px;border:1px dashed var(--verde);border-radius:8px;padding:5px 10px;margin-bottom:16px;color:var(--verde)}
+  .campo{display:block;margin:16px 0}
+  .campo span{display:block;font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--suave);margin-bottom:6px}
+  input[type=file]{width:100%;border:1.5px dashed var(--borda);border-radius:10px;padding:14px;background:#fbfdfc;font-size:13px}
+  button{width:100%;border:0;border-radius:10px;background:var(--verde);color:#fff;padding:14px 18px;font-size:14px;font-weight:500;cursor:pointer}
+  button:disabled{opacity:.6;cursor:wait}
+  .erro{color:var(--erro);font-size:13px;margin-top:12px}
+  .ok{border:1px solid #b9dcc8;background:#f0f8f3;color:#265c42;border-radius:10px;padding:14px;font-size:13px;margin-top:14px}
+  .aviso{border:1px solid #ecd6b2;background:#fdf6e8;color:#7a4d0c;border-radius:10px;padding:12px;font-size:12.5px;margin-bottom:14px}
+  .suporte{display:block;text-align:center;margin-top:20px;font-size:12px;color:var(--suave);text-decoration:none}
+  .suporte:hover{color:var(--verde)}
+  [hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="marca">FichaPro</div>
+  <main class="card">
+    <h1>Enviar documentação</h1>
+    <p id="subtitulo">Carregando informações da ficha…</p>
+    <div id="protocolo" class="protocolo" hidden></div>
+    <div id="aviso" class="aviso" hidden></div>
+    <div id="conteudo" hidden>
+      <p>Envie a foto ou o PDF da autorização assinada pelo responsável legal. Aceitamos JPG, PNG, WEBP ou PDF de até 12 MB.</p>
+      <label class="campo"><span>Arquivo</span><input id="arquivo" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" /></label>
+      <button id="enviar" type="button">Enviar documentação</button>
+      <div id="resultado"></div>
+    </div>
+    <p id="erro" class="erro" hidden></p>
+    <a class="suporte" id="suporte" href="https://wa.me/5561992944998" target="_blank" rel="noopener noreferrer">Precisa de ajuda? Falar com o suporte</a>
+  </main>
+</div>
+<script>
+(function(){
+  var API = ${JSON.stringify(API_BASE)};
+  var params = new URLSearchParams(location.search);
+  var f = params.get('f') || '';
+  var p = params.get('p') || '';
+  var t = params.get('t') || '';
+  var erro = document.getElementById('erro');
+  var subtitulo = document.getElementById('subtitulo');
+  var conteudo = document.getElementById('conteudo');
+  var protocolo = document.getElementById('protocolo');
+  var aviso = document.getElementById('aviso');
+  var resultado = document.getElementById('resultado');
+  var botao = document.getElementById('enviar');
+  var campo = document.getElementById('arquivo');
+
+  function mostrarErro(msg){ erro.textContent = msg; erro.hidden = false; }
+  function limparErro(){ erro.hidden = true; erro.textContent = ''; }
+
+  if(!f || !p || !t){ mostrarErro('Link incompleto. Peça um novo link ao estabelecimento.'); return; }
+
+  fetch(API + '/api/public/complementar?f=' + encodeURIComponent(f) + '&p=' + encodeURIComponent(p) + '&t=' + encodeURIComponent(t))
+    .then(function(r){ return r.json().then(function(d){ if(!r.ok) throw new Error(d.erro || 'Link inválido.'); return d; }); })
+    .then(function(d){
+      document.title = 'Documentação · ' + d.tenant.nome_negocio;
+      subtitulo.textContent = 'Ficha de ' + d.ficha.cliente_nome + ' · ' + d.tenant.nome_negocio;
+      protocolo.textContent = 'Protocolo ' + d.ficha.protocolo;
+      protocolo.hidden = false;
+      if(!d.aceita_documento){
+        aviso.textContent = 'Este estabelecimento prefere receber a documentação diretamente. Fale com ele pelo WhatsApp.';
+        aviso.hidden = false;
+        return;
+      }
+      conteudo.hidden = false;
+      var whats = document.getElementById('suporte');
+      whats.href = 'https://wa.me/5561992944998?text=' + encodeURIComponent('Olá! Preciso de ajuda com a ficha ' + d.ficha.protocolo + '.');
+    })
+    .catch(function(e){ mostrarErro(e.message || 'Não foi possível abrir o link.'); });
+
+  document.getElementById('enviar').addEventListener('click', function(){
+    limparErro();
+    var arquivo = campo.files && campo.files[0];
+    if(!arquivo){ mostrarErro('Escolha um arquivo primeiro.'); return; }
+    if(arquivo.size > 12 * 1024 * 1024){ mostrarErro('O arquivo deve ter no máximo 12 MB.'); return; }
+    botao.disabled = true;
+    botao.textContent = 'Enviando…';
+    var reader = new FileReader();
+    reader.onload = function(){
+      fetch(API + '/api/public/complementar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ f: f, p: p, t: t, nome_arquivo: arquivo.name, mime: arquivo.type, base64: reader.result })
+      }).then(function(r){ return r.json().then(function(d){ if(!r.ok) throw new Error(d.erro || 'Falha ao enviar.'); return d; }); })
+        .then(function(d){
+          conteudo.innerHTML = '<div class="ok">' + (d.mensagem || 'Documento recebido.') + '</div>';
+        })
+        .catch(function(e){
+          mostrarErro(e.message || 'Não foi possível enviar o documento.');
+          botao.disabled = false;
+          botao.textContent = 'Enviar documentação';
+        });
+    };
+    reader.onerror = function(){
+      mostrarErro('Não foi possível ler o arquivo.');
+      botao.disabled = false;
+      botao.textContent = 'Enviar documentação';
+    };
+    reader.readAsDataURL(arquivo);
+  });
+})();
+</script>
 </body>
 </html>`;
 }
@@ -493,6 +619,8 @@ function main() {
   }
 
   copiar(resolve("apps/painel/dist"), resolve(SITE, "dashboard"));
+  mkdirSync(resolve(SITE, "complementar"), { recursive: true });
+  writeFileSync(resolve(SITE, "complementar", "index.html"), renderComplemento(), "utf8");
   writeFileSync(resolve(SITE, "index.html"), renderRaiz(), "utf8");
   writeFileSync(resolve(SITE, "404.html"), render404(), "utf8");
   writeFileSync(resolve(SITE, ".nojekyll"), "", "utf8");

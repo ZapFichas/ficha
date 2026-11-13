@@ -2,10 +2,11 @@ import { Hono } from "hono";
 import { SignJWT, jwtVerify } from "jose";
 import type { AppEnv } from "../env.js";
 import { exigirAutenticacao, exigirOwner } from "../lib/auth.js";
-import { criptografarJson } from "../lib/crypto.js";
+import { criptografarJson, descriptografarJson } from "../lib/crypto.js";
 import { clienteAdmin } from "../lib/supabase.js";
 import { urlPainel } from "../lib/urls.js";
-import { conectarDrive } from "../services/drive.js";
+import { conectarDrive, DriveStorage } from "../services/drive.js";
+import { ErroDriveReconectar } from "../services/storage.js";
 
 export const rotasDrive = new Hono<AppEnv>();
 
@@ -115,6 +116,7 @@ rotasDrive.get("/oauth/callback", async (c) => {
         drive_access_token_enc: accessEnc,
         drive_token_expira_em: conectado.expiraEm.toISOString(),
         drive_folder_id: conectado.folderId,
+        drive_email: conectado.email,
         atualizado_em: new Date().toISOString(),
       },
       { onConflict: "tenant_id" }
@@ -155,10 +157,63 @@ rotasDrive.get("/status", exigirAutenticacao, async (c) => {
     conectado: Boolean(segredos?.drive_refresh_token_enc),
     storage_mode: tenant?.storage_mode ?? "r2",
     r2_configurado: Boolean(c.env.FICHAS_BUCKET),
+    google_configurado: Boolean(c.env.GOOGLE_CLIENT_ID && c.env.GOOGLE_CLIENT_SECRET),
     folder_id: segredos?.drive_folder_id ?? null,
     email: segredos?.drive_email ?? null,
     atualizado_em: segredos?.atualizado_em ?? null,
   });
+});
+
+rotasDrive.post("/testar", exigirAutenticacao, exigirOwner(), async (c) => {
+  const usuario = c.get("usuario");
+  const admin = clienteAdmin(c.env);
+  const { data: segredos } = await admin
+    .from("tenant_secrets")
+    .select("drive_refresh_token_enc, drive_folder_id")
+    .eq("tenant_id", usuario.tenantId)
+    .maybeSingle();
+
+  if (!segredos?.drive_refresh_token_enc) {
+    return c.json(
+      {
+        ok: false,
+        precisa_reconectar: true,
+        mensagem: "O Google Drive ainda não está conectado.",
+      },
+      409
+    );
+  }
+
+  try {
+    const token = await descriptografarJson<{ token: string }>(
+      segredos.drive_refresh_token_enc,
+      c.env.DATA_ENCRYPTION_KEY
+    );
+    const drive = new DriveStorage(c.env, {
+      refreshToken: token.token,
+      folderId: segredos.drive_folder_id ?? null,
+      nomeNegocio: "FichaPro",
+    });
+    const resultado = await drive.testarConexao();
+    return c.json({
+      ...resultado,
+      precisa_reconectar: false,
+      storage_mode: "drive",
+    });
+  } catch (err) {
+    const reconectar = err instanceof ErroDriveReconectar;
+    return c.json(
+      {
+        ok: false,
+        precisa_reconectar: reconectar,
+        mensagem:
+          err instanceof Error
+            ? err.message
+            : "Não foi possível validar a conexão com o Drive.",
+      },
+      reconectar ? 409 : 502
+    );
+  }
 });
 
 rotasDrive.post("/desconectar", exigirAutenticacao, exigirOwner(), async (c) => {

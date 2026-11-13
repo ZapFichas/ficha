@@ -135,3 +135,82 @@ curl "https://fichapro-api.zapfichas.workers.dev/api/public/fichas/F261113-E5224
 # logs do Worker
 cd apps/api && npx wrangler tail
 ```
+
+---
+
+## Atualização de 13/11/2026 — v2 de produto
+
+O código do painel/ficha foi atualizado com correções e novas telas. Para entrar
+no ar de ponta a ponta, faltam credenciais/infra.
+
+### 1. Banco (obrigatório para os novos recursos)
+
+Aplique `supabase/migrations/20260102000000_features.sql`:
+
+```bash
+supabase db push
+# ou cole o SQL no SQL Editor do projeto
+```
+
+A migration adiciona:
+
+- `formularios.campos_customizados`
+- `tenants.permissoes`
+- `profissionais`, `fichas.profissional_id`, `fichas.pendencias`
+- `ficha_alteracoes`
+- `ficha_anexos.storage_external_id`
+- policies de RLS e grants correspondentes
+
+Sem ela, o painel mostra mensagens amigáveis de “migration pendente”; o fluxo
+antigo continua funcionando.
+
+### 2. Worker (obrigatório para os novos endpoints)
+
+```bash
+cd apps/api
+npx wrangler secret put PLATFORM_ADMIN_EMAILS   # ex.: seu@email.com
+npx wrangler deploy
+```
+
+Sem o deploy, o Pages novo chama `/api/panel/analytics`, `/clientes`,
+`/profissionais` e `/admin/metricas` e recebe 404. As telas tratam o erro, mas
+os recursos não aparecem.
+
+### 3. Google Drive (causa provável do “parou de funcionar”)
+
+O app OAuth em modo **Testing** expira o refresh token em **7 dias**. Para
+produção:
+
+1. Google Cloud → OAuth consent screen → **Publish app**.
+2. Confirme a redirect URI:
+   `https://fichapro-api.zapfichas.workers.dev/api/drive/oauth/callback`
+3. No painel → Configurações → **Testar conexão**.
+4. Se aparecer “reconecte”, clique em **Conectar Google Drive** novamente.
+
+O novo botão **Testar conexão** mostra o e-mail conectado, a pasta raiz e se a
+autorização precisa ser refeita.
+
+### 4. GitHub Pages
+
+O push na `main` dispara o workflow e publica:
+
+- ficha atualizada;
+- painel com Insights, Clientes, Equipe e Planos;
+- `/complementar/` para envio de documento do responsável.
+
+### 5. Admin global
+
+Defina `PLATFORM_ADMIN_EMAILS` no Worker (lista separada por vírgula). Só esses
+e-mails veem o item **Admin global** no menu.
+
+### 6. Ordem de smoke test
+
+1. `npm test` e `npm run typecheck`.
+2. Migration aplicada.
+3. Worker publicado.
+4. Drive testado.
+5. Ficha demo aberta no celular.
+6. Ficha real de teste → PDF no Drive.
+7. Campo personalizado + profissional + busca por CPF.
+8. Insights (upgrade se estiver no Solo).
+9. Admin global com o e-mail autorizado.

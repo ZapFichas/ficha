@@ -50,7 +50,7 @@ function montarSeletorDemo() {
   topo.className = "seletor-topo";
   topo.innerHTML = `
     <span class="seletor-kicker">Demonstração</span>
-    <h1>Uma engine, quatro nichos.</h1>
+    <h1>Uma ficha para cada especialidade.</h1>
     <p>Abra a ficha de cada nicho para testar o fluxo completo: preenchimento, termo, revisão e assinatura. Nenhum dado é enviado.</p>
   `;
 

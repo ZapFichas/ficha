@@ -26,6 +26,9 @@ EMAIL_FROM=FichaPro <nao-responda@fichapro.app>
 # Observabilidade (opcional)
 SENTRY_DSN=
 
+# Admin global: e-mails separados por vírgula (dashboard da plataforma)
+PLATFORM_ADMIN_EMAILS=voce@seudominio.com
+
 # Billing (opcional nesta fase)
 STRIPE_WEBHOOK_SECRET=
 ASAAS_WEBHOOK_TOKEN=

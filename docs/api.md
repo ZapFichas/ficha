@@ -335,3 +335,82 @@ Valida `asaas-access-token` e processa `PAYMENT_RECEIVED`, `PAYMENT_CONFIRMED`, 
 - `OPTIONS` liberado por CORS em `/api/*`.
 - Recomenda-se Cloudflare WAF/rate limiting por IP em `/api/public/fichas` (ex.: 20 req/min).
 - Segredos nunca aparecem em respostas.
+
+---
+
+## Novos endpoints (v2)
+
+### `GET /api/panel/analytics?dias=30|90|180`
+
+Dashboard do tenant. Retorna KPIs, série mensal, profissionais, procedimentos,
+dias da semana, funil, recorrência e comparativo de planos.
+
+- Solo: `disponivel=false` com prévia mensal e `motivo` de upgrade.
+- Estúdio/Pro: dados completos.
+
+### `GET /api/panel/clientes?q=`
+
+Busca por nome, CPF completo (11 dígitos) ou 4 últimos dígitos. Agrupa as fichas
+do mesmo cliente e devolve histórico, pendências e profissional.
+
+### `GET|POST /api/panel/profissionais`
+
+Cadastro operacional de profissionais (nome, e-mail, telefone, especialidade,
+registro, cor). `PATCH /api/panel/profissionais/:id` e
+`DELETE /api/panel/profissionais/:id` (soft delete) são exclusivos do owner.
+
+### `PATCH /api/panel/formulario`
+
+Aceita também `campos_customizados: []` com até 40 campos. Limite por plano:
+Solo 3, Estúdio 15, Pro ilimitado.
+
+### `PATCH /api/panel/fichas/:id` (owner)
+
+Edita dados com justificativa obrigatória. Revalida o template, atualiza o hash
+do CPF quando necessário e grava evento `ficha_alterada`.
+
+### `GET /api/panel/alteracoes?status=pendente`
+
+Lista solicitações de alteração feitas pelo cliente.
+
+### `PATCH /api/panel/alteracoes/:id` (owner)
+
+Aprova (`aprovada`) ou recusa (`recusada`) uma solicitação.
+
+### `POST /api/panel/fichas/:id/pendencias/:indice/resolver` (owner)
+
+Marca uma pendência (ex.: documento do responsável) como resolvida.
+
+### `POST /api/drive/testar` (owner)
+
+Valida token, conta Google e pasta raiz. Retorna `precisa_reconectar=true` em
+caso de `invalid_grant`/403.
+
+### `POST /api/public/fichas/solicitar-alteracao`
+
+```json
+{
+  "tenant_slug": "estudio-exemplo",
+  "protocolo": "F261105-AB12CD",
+  "cpf_ultimos4": "7735",
+  "justificativa": "Corrigir o endereço informado.",
+  "campos": ["endereco"]
+}
+```
+
+Não exige login. A prova é o protocolo + 4 últimos dígitos do CPF. Cria uma
+solicitação pendente para aprovação do dono.
+
+### `GET /api/public/complementar?f=&p=&t=`
+
+Abre os dados seguros do link de complemento (sem CPF e sem respostas).
+
+### `POST /api/public/complementar`
+
+Recebe `{ f, p, t, nome_arquivo, mime, base64 }` (até 12 MB) e anexa a
+documentação do responsável legal. O token é HMAC do id da ficha + protocolo.
+
+### `GET /api/admin/metricas`
+
+Dashboard global (MRR, ARR, ARPA, churn, conversão, ativação, nichos, funil).
+Requer e-mail em `PLATFORM_ADMIN_EMAILS`.

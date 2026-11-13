@@ -1,15 +1,20 @@
 import {
   aplicarCamposAtivos,
+  aplicarCamposCustomizados,
+  aplicarTema,
   calcularIdade,
   campoVisivel,
   camposDoTemplate,
   dataISOHoje,
   formatarDataBR,
   formatarDataHoraBR,
+  linkProduto,
   montarContexto,
   passosDaFicha,
+  produtosPara,
   renderizarTexto,
   sanitizarRespostas,
+  SUPORTE_WHATSAPP,
   validarCampo,
   validarRespostas,
   valorVazio,
@@ -45,59 +50,36 @@ function h(tag, attrs = {}, ...filhos) {
   return el;
 }
 
-function hexParaRgb(hex) {
-  const limpo = String(hex ?? "").replace("#", "").trim();
-  if (!/^[0-9a-f]{3}$|^[0-9a-f]{6}$/i.test(limpo)) return null;
-  const full =
-    limpo.length === 3
-      ? limpo
-          .split("")
-          .map((c) => c + c)
-          .join("")
-      : limpo;
-  return {
-    r: parseInt(full.slice(0, 2), 16),
-    g: parseInt(full.slice(2, 4), 16),
-    b: parseInt(full.slice(4, 6), 16),
-  };
-}
-
-function luminancia(hex) {
-  const rgb = hexParaRgb(hex);
-  if (!rgb) return 0;
-  const canal = (v) => {
-    const s = v / 255;
-    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
-  };
-  return 0.2126 * canal(rgb.r) + 0.7152 * canal(rgb.g) + 0.0722 * canal(rgb.b);
-}
-
-function contrasteComBranco(hex) {
-  const l = luminancia(hex);
-  return (1.05) / (l + 0.05);
-}
-
 export class FichaEngine {
   constructor({ app, config, demo = false }) {
     this.app = app;
     this.config = config;
     this.demo = demo;
     this.tenant = config.tenant;
+    const templateAtivo = aplicarCamposAtivos(
+      config.template,
+      config.formulario?.campos_ativos ?? null
+    );
+    const templateComExtras = aplicarCamposCustomizados(
+      templateAtivo,
+      config.formulario?.campos_customizados ?? config.campos_customizados ?? []
+    );
     this.template = {
-      ...config.template,
-      secoes: aplicarCamposAtivos(
-        config.template,
-        config.formulario?.campos_ativos ?? null
-      ).secoes,
-      consentimentos_extras: config.template.consentimentos_extras ?? [],
+      ...templateComExtras,
+      secoes: templateComExtras.secoes,
+      consentimentos_extras: templateComExtras.consentimentos_extras ?? [],
     };
     this.profissionais = config.profissionais ?? [];
+    this.permissoes = config.permissoes ?? config.tenant?.permissoes ?? {};
+    this.produtos = config.produtos ?? null;
     this.dados = {};
     this.consent = { termo: false, lgpd: false, extras: {} };
     this.erros = {};
     this.passos = passosDaFicha(this.template, { menorIdade: false });
     this.passoIdx = 0;
     this.menorIdade = false;
+    this.pendenciaResponsavel = false;
+    this.permitePendencia = this.permissoes.permite_pendencia_responsavel === true;
     this.iniciadoEm = new Date().toISOString();
     this.retornoRevisao = false;
     this.pads = {};
@@ -115,18 +97,8 @@ export class FichaEngine {
   // ----------------------------------------------------------
   aplicarBranding() {
     const b = this.tenant.branding ?? {};
-    const primaria = b.cor_primaria ?? "#4F7963";
-    const secundaria = b.cor_secundaria ?? primaria;
-    const fundo = b.cor_fundo ?? "#e7efe9";
-    const sobre = contrasteComBranco(primaria) >= 4.5 ? "#ffffff" : "#14201a";
-    const rgb = hexParaRgb(primaria) ?? { r: 79, g: 121, b: 99 };
-
-    const raiz = document.documentElement;
-    raiz.style.setProperty("--cor-primaria", primaria);
-    raiz.style.setProperty("--cor-secundaria", secundaria);
-    raiz.style.setProperty("--cor-fundo", fundo);
-    raiz.style.setProperty("--cor-sobre-primaria", sobre);
-    raiz.style.setProperty("--cor-primaria-rgb", `${rgb.r}, ${rgb.g}, ${rgb.b}`);
+    const paleta = aplicarTema(document.documentElement, b);
+    document.body.classList.toggle("tema-escuro", Boolean(paleta?.escuro));
     document.title = `${this.tenant.nome_negocio} · ${this.template.nome}`;
   }
 
@@ -166,7 +138,19 @@ export class FichaEngine {
       "footer",
       { class: "rodape" },
       h("span", {}, "Seus dados são usados apenas para este atendimento."),
-      h("span", { class: "rodape-sub" }, "Tratamento conforme a LGPD · assinatura com trilha de auditoria")
+      h("span", { class: "rodape-sub" }, "Tratamento conforme a LGPD · assinatura com registro de segurança"),
+      h(
+        "a",
+        {
+          class: "rodape-suporte",
+          href: SUPORTE_WHATSAPP.url(
+            `Olá! Preciso de ajuda com a ficha de ${this.tenant.nome_negocio ?? "um estabelecimento"}.`
+          ),
+          target: "_blank",
+          rel: "noopener noreferrer",
+        },
+        `Suporte: ${SUPORTE_WHATSAPP.exibicao}`
+      )
     );
 
     this.app.replaceChildren(topo, progresso, this.etapas, this.conteudo, rodape);
@@ -529,12 +513,22 @@ export class FichaEngine {
             e.target.value = valor;
           }
           this.definirValor(campo, valor, { silencioso: true });
+
+          // Corrigir o valor deve limpar o erro imediatamente.
+          if (this.erros[campo.id]) {
+            const msg = validarCampo(campo, valor, this.contexto());
+            if (msg) this.mostrarErro(campo.id, msg);
+            else this.limparErro(campo.id);
+          }
         });
         entrada.addEventListener("blur", () => {
-          if (campo.tipo === "cpf" && entrada.value && !this.erros[campo.id]) {
-            const msg = validarCampo(campo, entrada.value, ctx);
-            if (msg) this.mostrarErro(campo.id, msg);
+          if (!entrada.value) {
+            this.limparErro(campo.id);
+            return;
           }
+          const msg = validarCampo(campo, entrada.value, this.contexto());
+          if (msg) this.mostrarErro(campo.id, msg);
+          else this.limparErro(campo.id);
         });
 
         controles.append(entrada);
@@ -706,8 +700,13 @@ export class FichaEngine {
     } else this.limparErro("__assinatura_cliente");
 
     if (this.menorIdade) {
-      if (!this.pads.responsavel?.temTraco()) {
-        this.mostrarErro("__assinatura_responsavel", "O responsável legal precisa assinar.");
+      if (!this.pads.responsavel?.temTraco() && !this.pendenciaResponsavel) {
+        this.mostrarErro(
+          "__assinatura_responsavel",
+          this.permitePendencia
+            ? "Assine ou marque que a documentação será enviada depois."
+            : "O responsável legal precisa assinar."
+        );
         ok = false;
       } else this.limparErro("__assinatura_responsavel");
     }
@@ -832,7 +831,7 @@ export class FichaEngine {
     this.conteudo.append(
       this.cabecalhoPasso(
         "Termo de consentimento",
-        "Leia com atenção. O aceite e a assinatura ficam registrados com data, hora e trilha de auditoria."
+        "Leia com atenção. O aceite e a assinatura ficam registrados com data, hora e registro seguro."
       )
     );
 
@@ -894,7 +893,7 @@ export class FichaEngine {
       h(
         "p",
         { class: "nota-assinatura" },
-        "A assinatura eletrônica é registrada com hash SHA-256 do conteúdo, data e hora, endereço IP e dispositivo. "
+        "A assinatura digital fica registrada com data, hora, endereço de acesso e dispositivo, formando um histórico seguro. "
       )
     );
 
@@ -1071,7 +1070,13 @@ export class FichaEngine {
           "div",
           { class: "aviso aviso-menor" },
           h("strong", {}, "Autorização do responsável legal"),
-          h("span", {}, "O responsável deve assinar abaixo para validar o procedimento.")
+          h(
+            "span",
+            {},
+            this.permitePendencia
+              ? "O responsável pode assinar agora ou enviar a documentação depois, sem travar o atendimento."
+              : "O responsável deve assinar abaixo para validar o procedimento."
+          )
         )
       );
       this.conteudo.append(
@@ -1081,13 +1086,51 @@ export class FichaEngine {
           nome: nomeResp,
         })
       );
+
+      if (this.permitePendencia) {
+        const inputPend = h("input", {
+          type: "checkbox",
+          id: "aceite_pendencia_responsavel",
+          checked: this.pendenciaResponsavel,
+          on: {
+            change: (e) => {
+              this.pendenciaResponsavel = e.target.checked;
+              this.limparErro("__assinatura_responsavel");
+              this.limparErro("__pendencia_responsavel");
+            },
+          },
+        });
+        const bloco = h(
+          "div",
+          { class: "aceite aceite-pendencia" },
+          h(
+            "label",
+            { class: "aceite-label", for: "aceite_pendencia_responsavel" },
+            inputPend,
+            h(
+              "span",
+              { class: "aceite-texto" },
+              h("strong", {}, "Vou enviar a documentação do responsável depois"),
+              h(
+                "small",
+                {},
+                "A ficha fica registrada como pendente. O estabelecimento recebe um alerta para cobrar a documentação."
+              )
+            )
+          ),
+          h("p", { class: "campo-erro", id: "erro___pendencia_responsavel", role: "alert", hidden: true })
+        );
+        bloco.classList.toggle("marcado", this.pendenciaResponsavel);
+        inputPend.addEventListener("change", () => bloco.classList.toggle("marcado", inputPend.checked));
+        this.conteudo.append(bloco);
+      }
     }
 
     this.conteudo.append(
       h(
         "p",
         { class: "nota-assinatura" },
-        "Registro de auditoria: hash SHA-256 do conteúdo, data/hora, IP e dispositivo. "
+        "Registro de segurança: identificação do conteúdo assinado, data, hora e dispositivo. "
       )
     );
 
@@ -1193,10 +1236,10 @@ export class FichaEngine {
         timestamp: new Date().toISOString(),
       },
     ];
-    if (this.menorIdade) {
+    if (this.menorIdade && this.pads.responsavel?.paraDataURL()) {
       assinaturas.push({
         papel: "responsavel",
-        imagem_base64: this.pads.responsavel?.paraDataURL(),
+        imagem_base64: this.pads.responsavel.paraDataURL(),
         timestamp: new Date().toISOString(),
       });
     }
@@ -1228,6 +1271,7 @@ export class FichaEngine {
         user_agent: navigator.userAgent,
         idioma: navigator.language,
         menor_idade: this.menorIdade,
+        pendencia_documentacao: this.menorIdade && this.pendenciaResponsavel,
         modo_demo: this.demo,
       },
     };
@@ -1274,6 +1318,7 @@ export class FichaEngine {
         this.mostrarSucesso({
           protocolo: resposta.protocolo,
           status: resposta.status,
+          linkComplemento: resposta.link_complemento,
           demo: false,
         });
       }
@@ -1299,7 +1344,7 @@ export class FichaEngine {
     document.body.classList.toggle("sem-scroll", mostrar);
   }
 
-  mostrarSucesso({ protocolo, demo }) {
+  mostrarSucesso({ protocolo, demo, status, linkComplemento }) {
     this.mostrarOverlay(false);
     document.body.classList.remove("sem-scroll");
     this.etapas.hidden = true;
@@ -1310,29 +1355,51 @@ export class FichaEngine {
       responsavel: this.pads.responsavel?.paraDataURL(),
     };
 
+    const pendente = status === "pendente_documentacao" || this.pendenciaResponsavel;
+    const mensagem = demo
+      ? "Esta foi uma demonstração. Nenhum dado foi enviado ou armazenado."
+      : pendente
+        ? "Ficha registrada provisoriamente. Falta apenas a documentação do responsável legal."
+        : "O estabelecimento já recebeu sua ficha. O PDF será organizado automaticamente.";
+
     this.conteudo.replaceChildren(
       h(
         "div",
         { class: "sucesso" },
         h("div", { class: "sucesso-anel", "aria-hidden": "true" }, h("span", { html: ICONE_CHECK })),
-        h("h2", { class: "sucesso-titulo" }, "Ficha concluída!"),
-        h(
-          "p",
-          { class: "sucesso-desc" },
-          demo
-            ? "Esta foi uma demonstração. Nenhum dado foi enviado ou armazenado."
-            : "O estúdio já recebeu sua ficha. O PDF será organizado automaticamente."
-        ),
+        h("h2", { class: "sucesso-titulo" }, pendente ? "Ficha registrada!" : "Ficha concluída!"),
+        h("p", { class: "sucesso-desc" }, mensagem),
         h(
           "div",
           { class: "sucesso-protocolo" },
           h("span", {}, "Protocolo"),
           h("strong", {}, protocolo ?? "—")
         ),
+        pendente && !demo
+          ? h(
+              "div",
+              { class: "aviso aviso-menor" },
+              h("strong", {}, "Próximo passo: documentação do responsável"),
+              h(
+                "span",
+                {},
+                "Você pode enviar a autorização depois pelo link de complemento ou diretamente ao estabelecimento. Nada trava o atendimento."
+              ),
+              linkComplemento
+                ? h(
+                    "a",
+                    { class: "btn btn-secundario", href: linkComplemento },
+                    "Enviar documentação depois"
+                  )
+                : null
+            )
+          : null,
         h(
           "p",
           { class: "sucesso-nota" },
-          "Agora é só avisar o profissional que você concluiu o preenchimento."
+          pendente
+            ? "Guarde o protocolo. O estabelecimento consegue acompanhar a pendência pelo painel."
+            : "Agora é só avisar o profissional que você concluiu o preenchimento."
         ),
         h(
           "div",
@@ -1354,12 +1421,61 @@ export class FichaEngine {
               on: { click: () => window.location.reload() },
             },
             "Nova ficha"
+          ),
+          h(
+            "a",
+            {
+              class: "btn btn-secundario",
+              href: SUPORTE_WHATSAPP.url(
+                `Olá! Preciso de ajuda com a ficha ${protocolo ?? ""} de ${this.tenant.nome_negocio ?? "um estabelecimento"}.`
+              ),
+              target: "_blank",
+              rel: "noopener noreferrer",
+            },
+            "Falar com o suporte"
           )
-        )
+        ),
+        this.montarVitrine()
       )
     );
 
     this.montarComprovante(protocolo, demo);
+  }
+
+  montarVitrine() {
+    const nicho = this.template.nicho_slug;
+    const produtos = this.produtos ?? produtosPara(nicho, 3);
+    if (!produtos?.length) return null;
+    const base = this.config.ficha_base ?? "https://zapfichas.github.io/ficha";
+    const grid = h("div", { class: "vitrine-grid" });
+    for (const produto of produtos) {
+      const link = produto.em_breve ? null : linkProduto(produto, { fichaBase: base });
+      const card = h(
+        link ? "a" : "div",
+        {
+          class: `vitrine-card${produto.em_breve ? " em-breve" : ""}`,
+          href: link,
+          target: link ? "_blank" : null,
+          rel: link ? "noopener noreferrer" : null,
+        },
+        h("strong", {}, produto.nome),
+        h("span", {}, produto.descricao),
+        h("small", {}, produto.em_breve ? "Em breve" : "Conhecer →")
+      );
+      grid.append(card);
+    }
+    return h(
+      "section",
+      { class: "vitrine" },
+      h("p", { class: "vitrine-kicker" }, "Também pode ser útil"),
+      h("h3", {}, "Uma ficha feita para o seu tipo de atendimento"),
+      h(
+        "p",
+        { class: "vitrine-desc" },
+        "Conheça as outras soluções FichaPro. Indique para um colega e ajude a espalhar menos papel."
+      ),
+      grid
+    );
   }
 
   montarComprovante(protocolo, demo) {
@@ -1420,7 +1536,7 @@ export class FichaEngine {
         { class: "comprovante-rodape" },
         demo
           ? "Demonstração — nenhum dado foi enviado ou armazenado."
-          : `Documento gerado eletronicamente por ${this.tenant.nome_negocio}. O PDF final é gerado pelo sistema com trilha de auditoria (hash SHA-256, data/hora, IP e dispositivo).`
+          : `Documento gerado eletronicamente por ${this.tenant.nome_negocio}. O PDF final é gerado pelo sistema com registro de segurança (identificação do conteúdo, data/hora, IP e dispositivo).`
       )
     );
   }

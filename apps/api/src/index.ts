@@ -9,6 +9,7 @@ import { rotasPublicas } from "./routes/public.js";
 import { rotasPainel } from "./routes/panel.js";
 import { rotasOnboarding } from "./routes/onboarding.js";
 import { rotasDrive } from "./routes/drive-oauth.js";
+import { rotasAdmin } from "./routes/admin.js";
 import { rotasWebhooks } from "./routes/webhooks.js";
 import {
   HttpError,
@@ -51,6 +52,7 @@ app.route("/api/public", rotasPublicas);
 app.route("/api/panel", rotasPainel);
 app.route("/api/onboarding", rotasOnboarding);
 app.route("/api/drive", rotasDrive);
+app.route("/api/admin", rotasAdmin);
 app.route("/webhooks", rotasWebhooks);
 
 app.notFound((c) => c.json({ erro: "Rota não encontrada." }, 404));

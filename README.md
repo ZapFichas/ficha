@@ -33,6 +33,14 @@ Estado detalhado, pendências de storage/Drive e comandos: [docs/staging.md](doc
 | Fila assíncrona de PDF + retry + idempotência | ✅ | `apps/api/src/index.ts`, `services/fichas.ts` |
 | Onboarding atômico (tenant + formulário + owner) | ✅ | função `criar_tenant` |
 | Painel do tenant (login, onboarding, fichas, QR, branding, Drive, campos) | ✅ MVP | `apps/painel/` |
+| Campos personalizados por tenant | ✅ v2 | `apps/painel/`, `packages/shared/` |
+| Profissionais responsáveis (equipe) | ✅ v2 | `apps/painel/`, migrations v2 |
+| Busca de clientes por CPF + histórico | ✅ v2 | `apps/api/src/routes/panel.ts` |
+| Pendência de menor + link de complemento | ✅ v2 | `apps/api/`, `site/complementar/` |
+| Aprovação de alteração de dados | ✅ v2 | `apps/api/`, `apps/painel/` |
+| Dashboards (tenant e admin global) | ✅ v2 | `apps/painel/`, `apps/api/` |
+| Tema com contraste automático | ✅ v2 | `packages/shared/src/tema.js` |
+| Vitrine, WhatsApp e catálogo de planos | ✅ v2 | `packages/shared/`, landings |
 | Billing Stripe + Asaas | 🟡 receptor idempotente de webhooks | `routes/webhooks.ts` |
 | Landing pages por nicho | ✅ estáticas, geradas dos templates | `scripts/build-pages.mjs` |
 | Deploy GitHub Pages | ✅ workflow + Pages Source = Actions | `.github/workflows/pages.yml` |
@@ -68,7 +76,7 @@ No modo demo:
 Testes:
 
 ```bash
-npm test                 # 29 testes (validação, URLs, schemas, cripto, PDF)
+npm test                 # 41 testes (validação, URLs, schemas, cripto, PDF, tema, planos)
 npm run typecheck        # TypeScript do Worker
 npm run build            # build da ficha + painel + bundle do Worker
 ```
@@ -116,10 +124,12 @@ docs/                    # arquitetura, API, LGPD, runbook, ADRs, fase 0
 Siga o [runbook](docs/runbook.md). Resumo:
 
 1. Crie o projeto Supabase e rode as migrations (`supabase db push`).
+   As migrations `core`, `rls`, `storage` e `features` precisam estar aplicadas.
 2. Rode `supabase db reset` localmente ou `npm run templates:sync` no remoto.
 3. Ative o **Custom Access Token Hook** (`public.custom_access_token_hook`).
 4. Crie as filas `fichapro-pdf` / `fichapro-pdf-dlq` e, se for usar R2, o bucket `fichapro-fichas`.
-5. Configure os secrets do Worker (`wrangler secret put ...`).
+5. Configure os secrets do Worker (`wrangler secret put ...`), incluindo
+   `PLATFORM_ADMIN_EMAILS` com os e-mails da gestão.
 6. Crie o OAuth Client do Google (Drive) e cadastre a redirect URI.
 7. Faça deploy do Worker.
 8. Configure `FICHA_URL_TEMPLATE`/`PANEL_URL` e publique o site (`node scripts/build-pages.mjs`).
@@ -151,7 +161,8 @@ node --env-file=.env.staging scripts/build-pages.mjs
 3. **Dados sensíveis criptografados na aplicação.** O payload completo fica em `fichas.dados_cifrados` (AES-256-GCM). `dados_json` contém apenas resumo não sensível.
 4. **CPF não fica em claro em metadados.** Guardamos HMAC-SHA256 + últimos 4 dígitos. O CPF completo só existe dentro do payload cifrado.
 5. **PDF é assíncrono e idempotente.** Fila + retry + status. O request da ficha nunca espera o PDF.
-6. **Nada de customização por cliente.** Configuração via painel (campos ativos, branding, retenção).
+6. **Customização via painel, nunca branch por cliente.** Campos, branding,
+   retenção e equipe são dados; o template global continua sendo a base.
 7. **Fase 0 manda.** Não adianta construir o nicho 5 antes de existirem 2 pagantes no nicho 1. Ver [plano de validação](docs/fase-0/plano-validacao.md).
 
 ---
@@ -159,6 +170,8 @@ node --env-file=.env.staging scripts/build-pages.mjs
 ## Documentação
 
 - [Staging atual](docs/staging.md)
+- [Plano de ação desta revisão](docs/plano-de-acao.md)
+- [Planos e ponto de corte](docs/planos.md)
 - [Arquitetura](docs/arquitetura.md)
 - [API](docs/api.md)
 - [Segurança e LGPD](docs/seguranca-lgpd.md)

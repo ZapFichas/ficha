@@ -10,6 +10,7 @@
   --cor-sobre-primaria: #ffffff;
   --cor-primaria-rgb: 79, 121, 99;
   --cor-painel: #ffffff;
+  --cor-painel-suave: #f7faf8;
   --cor-texto: #1d2b24;
   --cor-texto-suave: #5c7166;
   --cor-texto-claro: #8aa094;
@@ -90,9 +91,14 @@ a {
    Topo
    ------------------------------------------------------------ */
 .topo {
-  color: var(--cor-sobre-primaria);
+  color: var(--cor-sobre-topo, var(--cor-sobre-primaria));
   background:
-    linear-gradient(135deg, var(--cor-secundaria) 0%, var(--cor-primaria) 58%, var(--cor-primaria) 100%);
+    linear-gradient(
+      135deg,
+      var(--cor-topo-fundo-2, var(--cor-secundaria)) 0%,
+      var(--cor-topo-fundo, var(--cor-primaria)) 58%,
+      var(--cor-topo-fundo, var(--cor-primaria)) 100%
+    );
   position: relative;
   overflow: hidden;
 }
@@ -423,7 +429,7 @@ a {
   min-height: 48px;
   border: 1px solid var(--cor-borda);
   border-radius: 8px;
-  background: #fff;
+  background: var(--cor-painel);
   color: var(--cor-texto);
   padding: 12px 14px;
   font-size: 15px;
@@ -502,7 +508,7 @@ select.entrada {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #fff;
+  background: var(--cor-painel);
   cursor: pointer;
   font-size: 14px;
   transition: border-color 0.2s, background 0.2s;
@@ -542,7 +548,7 @@ select.entrada {
   padding: 10px 12px;
   border: 1px solid var(--cor-borda-suave);
   border-radius: 8px;
-  background: #fff;
+  background: var(--cor-painel);
   cursor: pointer;
   font-size: 13.5px;
   line-height: 1.35;
@@ -620,7 +626,7 @@ select.entrada {
   position: relative;
   border: 1.5px dashed var(--cor-borda);
   border-radius: 10px;
-  background: #fff;
+  background: var(--cor-painel);
   padding: 20px 16px;
   text-align: center;
   cursor: pointer;
@@ -690,7 +696,7 @@ select.entrada {
   border: 1px solid var(--cor-borda-suave);
   border-radius: 10px;
   padding: 10px;
-  background: #fff;
+  background: var(--cor-painel);
 }
 
 .upload-preview img {
@@ -771,7 +777,7 @@ select.entrada {
   border-radius: 10px;
   padding: 12px 14px;
   margin-bottom: 10px;
-  background: #fff;
+  background: var(--cor-painel);
   transition: border-color 0.2s, background 0.2s;
 }
 
@@ -1105,7 +1111,7 @@ select.entrada {
 
 .btn-secundario {
   flex: 0 0 auto;
-  background: rgba(255, 255, 255, 0.5);
+  background: var(--cor-painel-suave);
   border-color: var(--cor-borda);
   color: var(--cor-texto-suave);
 }
@@ -1235,7 +1241,7 @@ select.entrada {
   flex-direction: column;
   gap: 3px;
   border: 1px dashed var(--cor-primaria);
-  background: #fff;
+  background: var(--cor-painel);
   border-radius: 10px;
   padding: 11px 26px;
   margin-bottom: 18px;
@@ -1343,7 +1349,7 @@ select.entrada {
 
 .seletor-card {
   position: relative;
-  background: #fff;
+  background: var(--cor-painel);
   border: 1px solid var(--cor-borda-suave);
   border-radius: 14px;
   padding: 24px 22px 20px;
@@ -1441,7 +1447,7 @@ select.entrada {
 
 .tela-erro-box {
   max-width: 460px;
-  background: #fff;
+  background: var(--cor-painel);
   border: 1px solid var(--cor-borda-suave);
   border-radius: 14px;
   padding: 34px 28px;
@@ -1738,4 +1744,129 @@ select.entrada {
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ------------------------------------------------------------
+   Suporte, pend�ncia de menor e vitrine (cross-selling)
+   ------------------------------------------------------------ */
+.rodape-suporte {
+  align-self: center;
+  color: var(--cor-primaria);
+  font-size: 11px;
+  font-weight: 400;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(var(--cor-primaria-rgb), 0.35);
+  padding-bottom: 1px;
+}
+
+.rodape-suporte:hover {
+  border-bottom-color: var(--cor-primaria);
+}
+
+.aceite-pendencia {
+  border: 1.5px dashed rgba(var(--cor-primaria-rgb), 0.45);
+  background: rgba(var(--cor-primaria-rgb), 0.035);
+}
+
+.aceite-pendencia.marcado {
+  border-style: solid;
+}
+
+.vitrine {
+  width: 100%;
+  max-width: 760px;
+  margin: 46px auto 0;
+  padding-top: 28px;
+  border-top: 1px solid var(--cor-borda-suave);
+  text-align: left;
+}
+
+.vitrine-kicker {
+  margin: 0 0 4px;
+  font-size: 9.5px;
+  letter-spacing: 2.2px;
+  text-transform: uppercase;
+  color: var(--cor-texto-claro);
+}
+
+.vitrine h3 {
+  margin: 0 0 6px;
+  font-family: var(--fonte-titulo);
+  font-size: 25px;
+  font-weight: 400;
+  color: var(--cor-texto);
+}
+
+.vitrine-desc {
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--cor-texto-suave);
+}
+
+.vitrine-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.vitrine-card {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 14px 15px;
+  border: 1px solid var(--cor-borda-suave);
+  border-radius: 10px;
+  background: var(--cor-painel);
+  color: var(--cor-texto);
+  text-decoration: none;
+  transition: border-color 0.2s, transform 0.2s;
+}
+
+a.vitrine-card:hover {
+  border-color: var(--cor-primaria);
+  transform: translateY(-1px);
+}
+
+.vitrine-card strong {
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.vitrine-card span {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--cor-texto-suave);
+}
+
+.vitrine-card small {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--cor-primaria);
+}
+
+.vitrine-card.em-breve {
+  opacity: 0.72;
+}
+
+.vitrine-card.em-breve small {
+  color: var(--cor-texto-claro);
+}
+
+body.tema-escuro .assinatura-area {
+  background:
+    linear-gradient(#fff, #fff) padding-box,
+    repeating-linear-gradient(0deg, transparent, transparent 38px, rgba(16, 26, 22, 0.05) 39px);
+}
+
+body.tema-escuro .aviso {
+  background: rgba(154, 92, 15, 0.18);
+  border-color: rgba(255, 208, 138, 0.38);
+  color: var(--cor-texto);
+}
+
+body.tema-escuro .alerta-global {
+  background: rgba(178, 59, 59, 0.16);
+  border-color: rgba(255, 155, 155, 0.4);
+  color: var(--cor-texto);
 }

@@ -22,6 +22,13 @@ interface TokenCache {
 
 const cacheTokens = new Map<string, TokenCache>();
 
+class ErroDriveHttp extends Error {
+  constructor(public readonly status: number, mensagem: string) {
+    super(mensagem);
+    this.name = "ErroDriveHttp";
+  }
+}
+
 /**
  * Storage no Google Drive do cliente com escopo drive.file.
  * O Worker só enxerga arquivos/pastas que ele mesmo criou.
@@ -53,13 +60,21 @@ export class DriveStorage implements StorageAdapter {
     });
 
     if (!resp.ok) {
-      const detalhe = await resp.text();
-      if (resp.status === 400 || resp.status === 401) {
+      const texto = await resp.text();
+      cacheTokens.delete(this.config.refreshToken);
+      // invalid_grant = refresh token revogado/expirado (inclusive apps em
+      // modo "Testing" do Google, cujo token expira em 7 dias).
+      if (
+        resp.status === 400 ||
+        resp.status === 401 ||
+        texto.includes("invalid_grant") ||
+        texto.includes("Token has been expired or revoked")
+      ) {
         throw new ErroDriveReconectar(
-          "A autorização do Google Drive expirou. Reconecte no painel."
+          "A autorização do Google Drive expirou ou foi revogada. Reconecte a conta no painel e, se necessário, publique o app OAuth no Google Cloud."
         );
       }
-      throw new Error(`Falha ao renovar token do Drive: ${resp.status} ${detalhe}`);
+      throw new Error(`Falha ao renovar token do Drive: ${resp.status} ${texto.slice(0, 500)}`);
     }
 
     const dados = (await resp.json()) as {
@@ -85,9 +100,70 @@ export class DriveStorage implements StorageAdapter {
     if (!resp.ok) {
       const texto = await resp.text();
       if (resp.status === 401) throw new ErroDriveReconectar();
-      throw new Error(`Google Drive ${resp.status}: ${texto.slice(0, 500)}`);
+      if (resp.status === 403) {
+        throw new ErroDriveReconectar(
+          "O Google negou acesso ao Drive. Reconecte a conta e confira se o app OAuth está publicado."
+        );
+      }
+      throw new ErroDriveHttp(resp.status, `Google Drive ${resp.status}: ${texto.slice(0, 500)}`);
     }
     return (await resp.json()) as T;
+  }
+
+  /** Diagnóstico usado pelo painel: token, conta e pasta raiz. */
+  async testarConexao(): Promise<{
+    ok: boolean;
+    email: string | null;
+    nome: string | null;
+    pasta_id: string | null;
+    pasta_ok: boolean;
+    mensagem: string;
+  }> {
+    await this.accessToken();
+    let email: string | null = null;
+    let nome: string | null = null;
+    try {
+      const conta = await this.pedir<{
+        user?: { emailAddress?: string; displayName?: string };
+      }>(`${API}/about?fields=user(emailAddress,displayName)`);
+      email = conta.user?.emailAddress ?? null;
+      nome = conta.user?.displayName ?? null;
+    } catch (err) {
+      if (err instanceof ErroDriveReconectar) throw err;
+    }
+
+    let pastaId = this.config.folderId ?? null;
+    let pastaOk = false;
+    if (pastaId) {
+      try {
+        const pasta = await this.pedir<{ id: string; trashed?: boolean }>(
+          `${API}/files/${encodeURIComponent(pastaId)}?fields=id,name,trashed`
+        );
+        pastaOk = Boolean(pasta.id) && !pasta.trashed;
+      } catch (err) {
+        if (err instanceof ErroDriveHttp && err.status === 404) {
+          this.config.folderId = null;
+          pastaId = null;
+        } else if (err instanceof ErroDriveReconectar) {
+          throw err;
+        }
+      }
+    }
+    if (!pastaOk) {
+      pastaId = await this.garantirPastaRaiz();
+      pastaOk = Boolean(pastaId);
+    }
+
+    return {
+      ok: Boolean(pastaOk),
+      email,
+      nome,
+      pasta_id: pastaId,
+      pasta_ok: pastaOk,
+      mensagem: pastaOk
+        ? "Conexão com o Google Drive funcionando."
+        : "Não foi possível acessar a pasta do FichaPro no Drive.",
+    };
   }
 
   private async garantirPastaRaiz(): Promise<string> {
@@ -230,6 +306,7 @@ export async function conectarDrive(
   accessToken: string;
   expiraEm: Date;
   folderId: string;
+  email: string | null;
 }> {
   if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
     throw new Error("OAuth do Google não configurado.");
@@ -271,10 +348,19 @@ export async function conectarDrive(
   const folderId = await drive.prepararPastaRaiz();
   if (!folderId) throw new Error("Não foi possível criar a pasta no Drive.");
 
+  let email: string | null = null;
+  try {
+    const conta = await drive.testarConexao();
+    email = conta.email;
+  } catch {
+    // A conexão principal já foi validada pela criação da pasta.
+  }
+
   return {
     refreshToken: tokens.refresh_token,
     accessToken: tokens.access_token,
     expiraEm: new Date(Date.now() + tokens.expires_in * 1000),
     folderId,
+    email,
   };
 }

@@ -60,6 +60,30 @@ export async function hashCPF(cpf: string, pepper: string): Promise<string> {
   return hmacSha256Hex(pepper, somenteDigitos(cpf));
 }
 
+/** Token estável para o link de complemento da ficha (não expõe CPF). */
+export async function tokenComplemento(
+  fichaId: string,
+  protocolo: string,
+  segredo: string
+): Promise<string> {
+  return (await hmacSha256Hex(segredo, `complemento:${fichaId}:${protocolo}`)).slice(0, 40);
+}
+
+export async function tokenComplementoValido(
+  fichaId: string,
+  protocolo: string,
+  token: string,
+  segredo: string
+): Promise<boolean> {
+  const esperado = await tokenComplemento(fichaId, protocolo, segredo);
+  if (!token || token.length !== esperado.length) return false;
+  let igual = 0;
+  for (let i = 0; i < esperado.length; i++) {
+    igual |= esperado.charCodeAt(i) ^ token.charCodeAt(i);
+  }
+  return igual === 0;
+}
+
 export async function hashBytes(bytes: Uint8Array): Promise<string> {
   return sha256Hex(bytes);
 }

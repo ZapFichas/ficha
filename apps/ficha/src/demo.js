@@ -1,3 +1,4 @@
+import { produtosPara } from "@fichapro/shared";
 import tatuagem from "../../../templates/tatuagem.json";
 import piercing from "../../../templates/piercing.json";
 import estetica from "../../../templates/estetica.json";
@@ -96,7 +97,27 @@ export function configDemo(nicho = "tatuagem") {
       email_contato: "contato@estudioexemplo.com.br",
     },
     template,
-    formulario: { id: `demo-${slug}`, campos_ativos: null },
+    formulario: {
+      id: `demo-${slug}`,
+      campos_ativos: null,
+      campos_customizados: [
+        {
+          id: "custom_como_nos_conheceu",
+          label: "Como você nos conheceu?",
+          tipo: "select",
+          opcoes: ["Instagram", "Indicação", "Google", "Passando na rua"],
+          obrigatorio: false,
+          customizado: true,
+        },
+      ],
+    },
+    permissoes: {
+      permite_pendencia_responsavel: true,
+      permite_alteracao_dados: true,
+      exige_aprovacao_alteracao: true,
+      mostrar_vitrine: true,
+    },
+    produtos: produtosPara(slug, 3),
     profissionais: PROFISSIONAIS[slug],
   };
 }

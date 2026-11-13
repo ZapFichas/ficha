@@ -1,5 +1,14 @@
 import QRCode from "qrcode";
-import { mascararCPF } from "@fichapro/shared";
+import {
+  aplicarCamposCustomizados,
+  aplicarTema,
+  mascararCPF,
+  normalizarCamposCustomizados,
+  normalizarPermissoes,
+  produtosPara,
+  SUPORTE_WHATSAPP,
+  TIPOS_CAMPO_CUSTOMIZADO,
+} from "@fichapro/shared";
 import { api, baixarPdf, ApiError } from "./api.js";
 import { CONFIG, configurado, NICHOS, STATUS } from "./config.js";
 import { sessaoAtual, supabase } from "./supabase.js";
@@ -9,15 +18,20 @@ import {
   formatarDataHora,
   formatarMoeda,
   h,
-  hexParaRgb,
   iniciais,
   slugify,
   toast,
 } from "./ui.js";
+import { renderAdmin } from "./views-admin.js";
+import { renderClientes } from "./views-clientes.js";
+import { renderEquipe } from "./views-equipe.js";
+import { renderInsights } from "./views-insights.js";
+import { renderPlanos } from "./views-planos.js";
 import "./styles.css";
 
 const app = document.getElementById("app");
 const GOOGLE_AUTH = import.meta.env.VITE_GOOGLE_AUTH === "1";
+const ROTAS = ["fichas", "clientes", "insights", "equipe", "planos", "configuracoes", "admin"];
 
 const state = {
   session: null,
@@ -35,6 +49,9 @@ const state = {
   carregandoApp: false,
   onboardingSlugOk: null,
   authTab: "login",
+  plataformaAdmin: false,
+  plano: null,
+  permissoes: normalizarPermissoes(),
 };
 
 function limparEstado() {
@@ -52,6 +69,9 @@ function limparEstado() {
     linkFicha: "",
     drive: null,
     carregandoApp: false,
+    plataformaAdmin: false,
+    plano: null,
+    permissoes: normalizarPermissoes(),
   });
 }
 
@@ -278,7 +298,7 @@ function renderAuth(tab = state.authTab, mensagem = "") {
     h(
       "p",
       {},
-      "O cliente preenche e assina no celular. O PDF chega organizado no seu Google Drive, com trilha de auditoria."
+      "O cliente preenche e assina no celular. O PDF chega organizado no seu Google Drive, com registro seguro."
     ),
     h(
       "ul",
@@ -290,7 +310,28 @@ function renderAuth(tab = state.authTab, mensagem = "") {
     )
   );
 
-  app.append(h("div", { class: "auth-tela" }, esquerda, card));
+  app.append(
+    h(
+      "div",
+      { class: "auth-tela" },
+      esquerda,
+      h(
+        "div",
+        { class: "auth-coluna" },
+        card,
+        h(
+          "a",
+          {
+            class: "auth-suporte",
+            href: SUPORTE_WHATSAPP.url("Olá! Preciso de ajuda para entrar no FichaPro."),
+            target: "_blank",
+            rel: "noopener noreferrer",
+          },
+          `Precisa de ajuda? WhatsApp ${SUPORTE_WHATSAPP.exibicao}`
+        )
+      )
+    )
+  );
 }
 
 function grupo(rotulo, input, hint = null) {
@@ -376,9 +417,13 @@ async function iniciarPainel() {
     state.stats = stats;
     state.fichas = fichas.itens ?? [];
     state.proximoCursor = fichas.proximo_cursor ?? null;
+    state.plano = me.plano ?? null;
+    state.plataformaAdmin = Boolean(me.plataforma_admin);
+    state.permissoes = normalizarPermissoes(me.tenant?.permissoes);
 
     const rota = window.location.hash.replace(/^#\/?/, "");
-    state.view = rota === "configuracoes" ? "configuracoes" : "fichas";
+    state.view = ROTAS.includes(rota) ? rota : "fichas";
+    if (state.view === "admin" && !state.plataformaAdmin) state.view = "fichas";
 
     renderShell();
 
@@ -461,19 +506,9 @@ async function sair() {
 function renderShell() {
   app.replaceChildren();
   const tenant = state.tenant;
+  const paleta = aplicarTema(document.documentElement, tenant?.branding ?? {});
+  document.body.classList.toggle("tema-escuro", Boolean(paleta?.escuro));
   const marcaCor = tenant?.branding?.cor_primaria ?? "#4F7963";
-  document.documentElement.style.setProperty("--primaria", marcaCor);
-  document.documentElement.style.setProperty(
-    "--secundaria",
-    tenant?.branding?.cor_secundaria ?? marcaCor
-  );
-  const rgb = hexParaRgb(marcaCor);
-  if (rgb) {
-    document.documentElement.style.setProperty(
-      "--primaria-rgb",
-      `${rgb.r}, ${rgb.g}, ${rgb.b}`
-    );
-  }
 
   const logo = tenant?.branding?.logo_url
     ? h("img", { src: tenant.branding.logo_url, alt: "" })
@@ -507,6 +542,18 @@ function renderShell() {
         "div",
         { class: "painel-topo-acoes" },
         h("span", { class: `badge-plano ${tenant?.status ?? ""}` }, statusPlano),
+        h(
+          "a",
+          {
+            class: "btn-painel btn-whatsapp btn-pequeno",
+            href: SUPORTE_WHATSAPP.url(
+              `Olá! Preciso de ajuda com o painel do ${tenant?.nome_negocio ?? "meu estabelecimento"}.`
+            ),
+            target: "_blank",
+            rel: "noopener noreferrer",
+          },
+          "Suporte"
+        ),
         h("a", { class: "btn-painel btn-secundario-painel btn-pequeno", href: state.linkFicha, target: "_blank", rel: "noopener" }, "Abrir ficha"),
         h(
           "div",
@@ -523,21 +570,23 @@ function renderShell() {
     h(
       "nav",
       { class: "painel-nav", "aria-label": "Navegação principal" },
-      h(
-        "button",
-        {
-          class: `painel-nav-item ${state.view === "fichas" ? "ativa" : ""}`,
-          on: { click: () => navegar("fichas") },
-        },
-        "Fichas"
-      ),
-      h(
-        "button",
-        {
-          class: `painel-nav-item ${state.view === "configuracoes" ? "ativa" : ""}`,
-          on: { click: () => navegar("configuracoes") },
-        },
-        "Configurações"
+      ...[
+        ["fichas", "Fichas"],
+        ["clientes", "Clientes"],
+        ["insights", "Insights"],
+        ["equipe", "Equipe"],
+        ["planos", "Planos"],
+        ["configuracoes", "Configurações"],
+        ...(state.plataformaAdmin ? [["admin", "Admin global"]] : []),
+      ].map(([chave, rotulo]) =>
+        h(
+          "button",
+          {
+            class: `painel-nav-item ${state.view === chave ? "ativa" : ""}`,
+            on: { click: () => navegar(chave) },
+          },
+          rotulo
+        )
       )
     )
   );
@@ -546,17 +595,49 @@ function renderShell() {
   const rodape = h(
     "footer",
     { class: "painel-rodape" },
-    h("span", {}, "FichaPro · ficha digital com trilha de auditoria"),
-    h("span", {}, state.usuario?.email ?? "")
+    h(
+      "div",
+      {},
+      h("span", {}, "FichaPro · fichas digitais com registro seguro"),
+      h("small", {}, "Feito para reduzir papel e organizar a jornada do cliente.")
+    ),
+    h(
+      "div",
+      { class: "painel-rodape-acoes" },
+      h(
+        "a",
+        {
+          class: "link-painel",
+          href: SUPORTE_WHATSAPP.url("Olá! Preciso de ajuda com o FichaPro."),
+          target: "_blank",
+          rel: "noopener noreferrer",
+        },
+        `Suporte no WhatsApp · ${SUPORTE_WHATSAPP.exibicao}`
+      ),
+      h("span", {}, state.usuario?.email ?? "")
+    )
   );
 
-  app.append(topo, conteudo, rodape);
+  const ajuda = h(
+    "a",
+    {
+      class: "ajuda-flutuante",
+      href: SUPORTE_WHATSAPP.url("Olá! Preciso de ajuda com o FichaPro."),
+      target: "_blank",
+      rel: "noopener noreferrer",
+      "aria-label": `Suporte pelo WhatsApp ${SUPORTE_WHATSAPP.exibicao}`,
+    },
+    h("span", { class: "ajuda-icone", "aria-hidden": "true" }, "💬"),
+    h("span", {}, "Suporte")
+  );
+
+  app.append(topo, conteudo, rodape, ajuda);
   renderView();
 }
 
 function navegar(view) {
-  state.view = view;
-  window.location.hash = view === "configuracoes" ? "#/configuracoes" : "#/fichas";
+  state.view = ROTAS.includes(view) ? view : "fichas";
+  window.location.hash = `#/${state.view}`;
   renderShell();
 }
 
@@ -564,8 +645,28 @@ function renderView() {
   const container = document.getElementById("conteudo-painel");
   if (!container) return;
   container.replaceChildren();
-  if (state.view === "configuracoes") renderConfiguracoes(container);
-  else renderFichas(container);
+  switch (state.view) {
+    case "clientes":
+      renderClientes(container, { abrirFicha });
+      break;
+    case "insights":
+      renderInsights(container, { state, navegar });
+      break;
+    case "equipe":
+      renderEquipe(container, { state, recarregarPainel: iniciarPainel });
+      break;
+    case "planos":
+      renderPlanos(container, { state, navegar });
+      break;
+    case "admin":
+      renderAdmin(container);
+      break;
+    case "configuracoes":
+      renderConfiguracoes(container);
+      break;
+    default:
+      renderFichas(container);
+  }
 }
 
 // ------------------------------------------------------------
@@ -582,11 +683,19 @@ function renderFichas(container) {
       {},
       h("p", { class: "kicker" }, "Operação"),
       h("h1", {}, "Fichas"),
-      h("p", { class: "pagina-sub" }, "Acompanhe o preenchimento, o PDF e a trilha de assinatura.")
+      h("p", { class: "pagina-sub" }, "Acompanhe cada ficha, o PDF e a assinatura em um só lugar.")
     ),
     h(
       "div",
       { class: "acoes-painel" },
+      h(
+        "button",
+        {
+          class: "btn-painel btn-secundario-painel",
+          on: { click: () => navegar("insights") },
+        },
+        "Ver insights"
+      ),
       h(
         "button",
         {
@@ -614,6 +723,7 @@ function renderFichas(container) {
     statCard("Total", stats.total ?? 0),
     statCard("Concluídas", stats.salvas ?? 0, "sucesso"),
     statCard("Processando", stats.processando ?? 0, "processando"),
+    statCard("Pendências", stats.pendentes ?? 0, "alerta"),
     statCard("Últimos 30 dias", stats.ultimos_30_dias ?? 0)
   );
 
@@ -626,7 +736,7 @@ function renderFichas(container) {
     h(
       "div",
       { class: "qr-info" },
-      h("h3", {}, "QR code do estúdio"),
+      h("h3", {}, "QR code do estabelecimento"),
       h("p", {}, "Imprima e deixe na recepção. O cliente aponta a câmera e preenche no navegador."),
       h("code", { class: "link-ficha" }, linkCurto),
       h(
@@ -655,9 +765,9 @@ function renderFichas(container) {
   const busca = h("input", {
     class: "entrada-painel",
     type: "search",
-    placeholder: "Buscar por nome do cliente…",
+    placeholder: "Buscar por nome ou CPF do cliente…",
     value: state.filtros.q,
-    "aria-label": "Buscar ficha",
+    "aria-label": "Buscar ficha por nome ou CPF",
   });
   const statusSelect = h(
     "select",
@@ -739,6 +849,7 @@ function renderListaFichas(container) {
     for (const ficha of fichas) {
       const cfg = STATUS[ficha.status] ?? { rotulo: ficha.status, classe: "neutro" };
       const detalhe = ficha.dados_json ?? {};
+      const pendencias = Array.isArray(ficha.pendencias) ? ficha.pendencias.length : 0;
       container.append(
         h(
           "button",
@@ -755,11 +866,19 @@ function renderListaFichas(container) {
             h(
               "small",
               {},
-              `${ficha.protocolo} · ${detalhe.profissional ?? "sem profissional"} · ${
-                detalhe.data_procedimento ? formatarData(detalhe.data_procedimento) : formatarDataHora(ficha.criado_em)
-              }`
+              [
+                ficha.protocolo,
+                ficha.cliente_cpf_ultimos4 ? `CPF ***${ficha.cliente_cpf_ultimos4}` : null,
+                detalhe.profissional ?? "sem profissional",
+                detalhe.data_procedimento
+                  ? formatarData(detalhe.data_procedimento)
+                  : formatarDataHora(ficha.criado_em),
+              ]
+                .filter(Boolean)
+                .join(" · ")
             )
           ),
+          pendencias ? h("span", { class: "badge-status alerta" }, `${pendencias} pendência(s)`) : null,
           h("span", { class: `badge-status ${cfg.classe}` }, cfg.rotulo),
           h("span", { class: "ficha-seta", "aria-hidden": "true" }, "→")
         )
@@ -791,7 +910,11 @@ async function carregarFichas(acumular = false) {
 
   try {
     const params = new URLSearchParams({ limite: "25" });
-    if (state.filtros.q) params.set("q", state.filtros.q);
+    if (state.filtros.q) {
+      const digitos = String(state.filtros.q).replace(/\D+/g, "");
+      if (digitos.length === 11 || digitos.length === 4) params.set("cpf", digitos);
+      else params.set("q", state.filtros.q);
+    }
     if (state.filtros.status) params.set("status", state.filtros.status);
     if (acumular && state.proximoCursor) params.set("cursor", state.proximoCursor);
 
@@ -894,7 +1017,15 @@ async function abrirFicha(id) {
 
   try {
     const dados = await api(`/api/panel/fichas/${id}`);
-    caixa.replaceChildren(renderDetalheFicha(dados, fechar));
+    const recarregar = async () => {
+      try {
+        const atualizado = await api(`/api/panel/fichas/${id}`);
+        caixa.replaceChildren(renderDetalheFicha(atualizado, fechar, recarregar));
+      } catch (err) {
+        toast(err.message ?? "Não foi possível atualizar a ficha.", "erro");
+      }
+    };
+    caixa.replaceChildren(renderDetalheFicha(dados, fechar, recarregar));
   } catch (err) {
     caixa.replaceChildren(
       h(
@@ -908,13 +1039,25 @@ async function abrirFicha(id) {
   }
 }
 
-function renderDetalheFicha({ ficha: registro, dados, assinaturas, consentimentos, anexos }, fechar) {
+function renderDetalheFicha({ ficha: registro, dados, meta, profissional, assinaturas, consentimentos, anexos, alteracoes, historico_cliente }, fechar, recarregar) {
   const cfg = STATUS[registro.status] ?? { rotulo: registro.status, classe: "neutro" };
-  const secoes = state.template?.campos_json?.secoes ?? [];
-  const mapaCampos = new Map();
-  for (const secao of secoes) {
-    for (const campo of secao.campos ?? []) mapaCampos.set(campo.id, { ...campo, secao: secao.titulo });
-  }
+  const templateBase = {
+    ...(state.template ?? {}),
+    secoes: state.template?.campos_json?.secoes ?? [],
+    consentimentos_extras: state.template?.campos_json?.consentimentos_extras ?? [],
+  };
+  const template = aplicarCamposCustomizados(
+    templateBase,
+    state.formulario?.campos_customizados ?? []
+  );
+  const secoes = template.secoes ?? [];
+  const pendencias = Array.isArray(registro.pendencias)
+    ? registro.pendencias
+    : Array.isArray(meta?.pendencias)
+      ? meta.pendencias
+      : [];
+  const pendentesAbertas = pendencias.filter((p) => p?.status === "pendente" || !p?.status);
+  const alteracoesPendentes = (alteracoes ?? []).filter((a) => a.status === "pendente");
 
   const acoes = h(
     "div",
@@ -939,9 +1082,7 @@ function renderDetalheFicha({ ficha: registro, dados, assinaturas, consentimento
           },
           "Baixar PDF"
         )
-      : null,
-    registro.status === "erro" || registro.status === "preenchida"
-      ? h(
+      : h(
           "button",
           {
             class: "btn-painel btn-secundario-painel btn-pequeno",
@@ -949,7 +1090,7 @@ function renderDetalheFicha({ ficha: registro, dados, assinaturas, consentimento
               click: async () => {
                 try {
                   await api(`/api/panel/fichas/${registro.id}/reprocessar`, { method: "POST" });
-                  toast("Reprocessamento enfileirado.");
+                  toast("Geração do PDF reenfileirada.");
                   fechar();
                   atualizarTudo();
                 } catch (err) {
@@ -958,7 +1099,16 @@ function renderDetalheFicha({ ficha: registro, dados, assinaturas, consentimento
               },
             },
           },
-          "Reprocessar PDF"
+          "Gerar PDF"
+        ),
+    state.usuario?.role === "owner"
+      ? h(
+          "button",
+          {
+            class: "btn-painel btn-secundario-painel btn-pequeno",
+            on: { click: () => abrirEditorFicha({ registro, dados, template, fechar, recarregar }) },
+          },
+          "Editar dados"
         )
       : null,
     h(
@@ -979,20 +1129,93 @@ function renderDetalheFicha({ ficha: registro, dados, assinaturas, consentimento
       h(
         "p",
         { class: "muted" },
-        `Recebida em ${formatarDataHora(registro.criado_em)} · ${registro.menor_idade ? "cliente menor de idade" : "cliente adulto"}`
+        [
+          `Recebida em ${formatarDataHora(registro.criado_em)}`,
+          registro.menor_idade ? "cliente menor de idade" : "cliente adulto",
+          profissional?.nome ? `profissional: ${profissional.nome}` : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")
       )
     ),
-    h("span", { class: `badge-status ${cfg.classe}` }, cfg.rotulo)
+    h(
+      "div",
+      { class: "modal-badges" },
+      pendentesAbertas.length
+        ? h("span", { class: "badge-status alerta" }, `${pendentesAbertas.length} pendência(s)`)
+        : null,
+      h("span", { class: `badge-status ${cfg.classe}` }, cfg.rotulo)
+    )
   );
 
   const corpo = h("div", { class: "modal-corpo" });
 
+  if (pendencias.length) {
+    const bloco = h(
+      "div",
+      { class: "pendencia-bloco" },
+      h("h3", { class: "detalhe-titulo" }, "Pendências de documentação"),
+      ...pendencias.map((pendencia, indice) =>
+        h(
+          "div",
+          { class: `pendencia-item ${pendencia.status ?? "pendente"}` },
+          h(
+            "div",
+            {},
+            h(
+              "strong",
+              {},
+              pendencia.tipo === "documentacao_responsavel"
+                ? "Documento do responsável legal"
+                : pendencia.tipo
+            ),
+            h("span", {}, pendencia.descricao ?? "")
+          ),
+          pendencia.status === "pendente" || !pendencia.status
+            ? h(
+                "button",
+                {
+                  class: "btn-painel btn-primario-painel btn-pequeno",
+                  on: {
+                    click: async (e) => {
+                      e.target.disabled = true;
+                      try {
+                        await api(
+                          `/api/panel/fichas/${registro.id}/pendencias/${indice}/resolver`,
+                          { method: "POST" }
+                        );
+                        toast("Pendência resolvida.");
+                        await recarregar();
+                      } catch (err) {
+                        toast(err.message ?? "Falha ao resolver.", "erro");
+                        e.target.disabled = false;
+                      }
+                    },
+                  },
+                },
+                "Marcar como resolvida"
+              )
+            : h("span", { class: "badge-status sucesso" }, "Resolvida")
+        )
+      )
+    );
+    corpo.append(bloco);
+  }
+
   const resumo = h("div", { class: "detalhe-grid" });
   const resumoItens = [
-    ["Profissional", dados.profissional ?? registro.dados_json?.profissional],
-    ["Procedimento", registro.dados_json?.data_procedimento ? formatarData(registro.dados_json.data_procedimento) : null],
+    ["Profissional", profissional?.nome ?? dados.profissional ?? registro.dados_json?.profissional],
+    [
+      "Procedimento",
+      registro.dados_json?.data_procedimento
+        ? formatarData(registro.dados_json.data_procedimento)
+        : null,
+    ],
     ["Valor", registro.dados_json?.valor ? formatarMoeda(registro.dados_json.valor) : null],
-    ["PDF gerado", registro.pdf_gerado_em ? formatarDataHora(registro.pdf_gerado_em) : "Pendente"],
+    [
+      "PDF gerado",
+      registro.pdf_gerado_em ? formatarDataHora(registro.pdf_gerado_em) : "Pendente",
+    ],
   ];
   for (const [rotulo, valor] of resumoItens) {
     resumo.append(h("span", { class: "detalhe-rotulo" }, rotulo), h("span", {}, valor ?? "—"));
@@ -1024,6 +1247,70 @@ function renderDetalheFicha({ ficha: registro, dados, assinaturas, consentimento
     corpo.append(h("h3", { class: "detalhe-titulo" }, "Dados"), grid);
   }
 
+  if (alteracoesPendentes.length) {
+    const solicitacoes = h("div", { class: "detalhe-lista" });
+    for (const alteracao of alteracoesPendentes) {
+      solicitacoes.append(
+        h(
+          "div",
+          { class: "detalhe-item" },
+          h(
+            "strong",
+            {},
+            `Solicitação de alteração · ${formatarDataHora(alteracao.criado_em)}`
+          ),
+          h("span", {}, alteracao.justificativa ?? ""),
+          h("small", {}, (alteracao.campos ?? []).join(", ") || "Campos não especificados"),
+          h(
+            "div",
+            { class: "acoes-painel" },
+            h(
+              "button",
+              {
+                class: "btn-painel btn-primario-painel btn-pequeno",
+                on: {
+                  click: () =>
+                    abrirEditorFicha({
+                      registro,
+                      dados,
+                      template,
+                      fechar,
+                      recarregar,
+                      alteracaoId: alteracao.id,
+                      justificativa: alteracao.justificativa,
+                    }),
+                },
+              },
+              "Revisar e aplicar"
+            ),
+            h(
+              "button",
+              {
+                class: "btn-painel btn-secundario-painel btn-pequeno",
+                on: {
+                  click: async () => {
+                    try {
+                      await api(`/api/panel/alteracoes/${alteracao.id}`, {
+                        method: "PATCH",
+                        body: { status: "recusada", resposta: "Recusado pelo estabelecimento." },
+                      });
+                      toast("Solicitação recusada.");
+                      await recarregar();
+                    } catch (err) {
+                      toast(err.message ?? "Falha ao recusar.", "erro");
+                    }
+                  },
+                },
+              },
+              "Recusar"
+            )
+          )
+        )
+      );
+    }
+    corpo.append(h("h3", { class: "detalhe-titulo" }, "Solicitações do cliente"), solicitacoes);
+  }
+
   const consent = h("div", { class: "detalhe-lista" });
   for (const c of consentimentos ?? []) {
     consent.append(
@@ -1043,7 +1330,11 @@ function renderDetalheFicha({ ficha: registro, dados, assinaturas, consentimento
       h(
         "div",
         { class: "detalhe-item" },
-        h("strong", {}, a.papel === "cliente" ? "Assinatura do cliente" : "Assinatura do responsável"),
+        h(
+          "strong",
+          {},
+          a.papel === "cliente" ? "Assinatura do cliente" : "Assinatura do responsável"
+        ),
         h("span", {}, `${formatarDataHora(a.timestamp)} · IP ${a.ip ?? "—"}`),
         h("code", {}, a.hash_conteudo ?? "")
       )
@@ -1058,18 +1349,55 @@ function renderDetalheFicha({ ficha: registro, dados, assinaturas, consentimento
         h(
           "div",
           { class: "detalhe-item" },
-          h("strong", {}, a.tipo),
-          h("span", {}, `${a.nome_arquivo ?? "arquivo"} · ${a.status}`)
+          h(
+            "strong",
+            {},
+            a.tipo === "documentacao_responsavel" ? "Documento do responsável" : a.tipo
+          ),
+          h("span", {}, `${a.nome_arquivo ?? "arquivo"} · ${a.status}`),
+          a.storage_key || a.storage_external_id
+            ? h(
+                "a",
+                {
+                  class: "link-painel",
+                  href: `${CONFIG.apiBase}/api/panel/fichas/${registro.id}/anexos/${a.id}`,
+                  target: "_blank",
+                  rel: "noopener noreferrer",
+                },
+                "Abrir arquivo"
+              )
+            : null
         )
       );
     }
     corpo.append(h("h3", { class: "detalhe-titulo" }, "Anexos"), anexosEl);
   }
 
+  if (historico_cliente?.length) {
+    const historico = h("div", { class: "detalhe-lista" });
+    for (const item of historico_cliente) {
+      historico.append(
+        h(
+          "button",
+          {
+            class: "historico-item",
+            type: "button",
+            on: { click: () => abrirFicha(item.id) },
+          },
+          h("span", {}, formatarData(item.criado_em)),
+          h("strong", {}, item.protocolo),
+          h("span", {}, item.dados_json?.profissional ?? "sem profissional"),
+          h("span", { class: "historico-seta" }, "→")
+        )
+      );
+    }
+    corpo.append(h("h3", { class: "detalhe-titulo" }, "Histórico do cliente"), historico);
+  }
+
   const auditoria = h(
     "div",
     { class: "auditoria" },
-    h("h3", { class: "detalhe-titulo" }, "Trilha de auditoria"),
+    h("h3", { class: "detalhe-titulo" }, "Registro de segurança"),
     h("code", {}, `hash_pdf: ${registro.hash_pdf ?? "—"}`),
     h("code", {}, `IP: ${registro.ip_assinatura ?? "—"}`),
     h("code", {}, `user-agent: ${registro.user_agent_assinatura ?? "—"}`),
@@ -1078,6 +1406,161 @@ function renderDetalheFicha({ ficha: registro, dados, assinaturas, consentimento
   corpo.append(auditoria);
 
   return h("div", { class: "modal-conteudo" }, topo, acoes, corpo);
+}
+
+function abrirEditorFicha({
+  registro,
+  dados,
+  template,
+  fechar,
+  recarregar,
+  alteracaoId,
+  justificativa,
+}) {
+  const overlay = h("div", {
+    class: "modal-overlay modal-overlay-2",
+    role: "dialog",
+    "aria-modal": "true",
+  });
+  const caixa = h("div", { class: "modal-ficha modal-editor" });
+  overlay.append(caixa);
+  document.body.append(overlay);
+
+  const fecharEditor = () => overlay.remove();
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) fecharEditor();
+  });
+
+  const campos = [];
+  for (const secao of template.secoes ?? []) {
+    for (const campo of secao.campos ?? []) {
+      if (campo.tipo === "upload" || campo.tipo === "checkbox") continue;
+      campos.push({ campo, secao });
+    }
+  }
+
+  const form = h("form", { class: "form-painel" });
+  const entradas = new Map();
+  for (const { campo } of campos) {
+    const valor = dados[campo.id];
+    let input;
+    if (campo.tipo === "select") {
+      input = h("select", { class: "entrada-painel" });
+      input.append(h("option", { value: "" }, "—"));
+      for (const opcao of campo.opcoes ?? []) {
+        input.append(h("option", { value: opcao, selected: valor === opcao }, opcao));
+      }
+    } else if (campo.tipo === "sim_nao") {
+      input = h("select", { class: "entrada-painel" });
+      input.append(h("option", { value: "" }, "—"));
+      for (const opcao of ["Não", "Sim"]) {
+        input.append(h("option", { value: opcao, selected: valor === opcao }, opcao));
+      }
+    } else if (campo.tipo === "textarea") {
+      input = h("textarea", { class: "entrada-painel", rows: 3 });
+      input.value = valor ?? "";
+    } else {
+      input = h("input", {
+        class: "entrada-painel",
+        type:
+          campo.tipo === "date"
+            ? "date"
+            : campo.tipo === "number"
+              ? "number"
+              : "text",
+        value: valor ?? "",
+      });
+    }
+    entradas.set(campo.id, input);
+    form.append(
+      h(
+        "label",
+        { class: "campo-painel" },
+        h("span", { class: "campo-painel-rotulo" }, campo.label),
+        input
+      )
+    );
+  }
+
+  const motivo = h("textarea", {
+    class: "entrada-painel",
+    rows: 2,
+    placeholder: "Descreva o motivo da alteração (obrigatório para auditoria).",
+  });
+  motivo.value = justificativa ?? "";
+
+  form.append(
+    h(
+      "label",
+      { class: "campo-painel" },
+      h("span", { class: "campo-painel-rotulo" }, "Justificativa"),
+      motivo
+    ),
+    h(
+      "div",
+      { class: "acoes-painel" },
+      h("button", { class: "btn-painel btn-primario-painel", type: "submit" }, "Salvar alterações"),
+      h(
+        "button",
+        { class: "btn-painel btn-secundario-painel", type: "button", on: { click: fecharEditor } },
+        "Cancelar"
+      )
+    )
+  );
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const botao = form.querySelector("button[type=submit]");
+    botao.disabled = true;
+    const novos = {};
+    for (const { campo } of campos) {
+      const input = entradas.get(campo.id);
+      const valor = input?.value ?? "";
+      if (valor !== (dados[campo.id] ?? "")) novos[campo.id] = valor;
+    }
+    if (!Object.keys(novos).length) {
+      toast("Nenhum campo foi alterado.", "erro");
+      botao.disabled = false;
+      return;
+    }
+    try {
+      await api(`/api/panel/fichas/${registro.id}`, {
+        method: "PATCH",
+        body: {
+          dados: novos,
+          justificativa: motivo.value.trim(),
+          alteracao_id: alteracaoId,
+        },
+      });
+      toast("Ficha atualizada com registro de auditoria.");
+      fecharEditor();
+      await recarregar();
+      atualizarTudo();
+    } catch (err) {
+      toast(err.message ?? "Não foi possível salvar a edição.", "erro");
+      botao.disabled = false;
+    }
+  });
+
+  caixa.append(
+    h(
+      "div",
+      { class: "modal-topo" },
+      h(
+        "div",
+        {},
+        h("p", { class: "kicker" }, registro.protocolo),
+        h("h2", {}, "Editar dados da ficha"),
+        h(
+          "p",
+          { class: "muted" },
+          "Somente o proprietário pode alterar. Toda edição fica registrada."
+        )
+      ),
+      h("button", { class: "link-painel", on: { click: fecharEditor } }, "Fechar")
+    ),
+    h("div", { class: "modal-corpo" }, form)
+  );
 }
 
 function formatarValor(campo, valor) {
@@ -1113,12 +1596,23 @@ function renderConfiguracoes(container) {
         {},
         h("p", { class: "kicker" }, "Configuração"),
         h("h1", {}, "Seu estabelecimento"),
-        h("p", { class: "pagina-sub" }, "Marca, retenção, Drive e campos da ficha.")
+        h(
+          "p",
+          { class: "pagina-sub" },
+          "Marca, campos da ficha, equipe, armazenamento e fluxos de exceção."
+        )
       )
     )
   );
 
-  container.append(cardTenant(), cardDrive(), cardCampos(), cardPlano());
+  container.append(
+    cardTenant(),
+    cardCampos(),
+    cardPermissoes(),
+    cardDrive(),
+    cardPlano(),
+    cardVitrineSuporte()
+  );
   carregarDrive();
 }
 
@@ -1140,6 +1634,19 @@ function cardTenant() {
   const corFundo = inputPainel({ value: b.cor_fundo ?? "#e7efe9", id: "cfg-fundo", type: "color" });
   const logo = inputPainel({ value: b.logo_url ?? "", id: "cfg-logo", type: "url", placeholder: "https://..." });
 
+  const previaTema = () => {
+    aplicarTema(document.documentElement, {
+      ...b,
+      cor_primaria: corPrimaria.value,
+      cor_secundaria: corSecundaria.value,
+      cor_fundo: corFundo.value,
+    });
+  };
+  for (const input of [corPrimaria, corSecundaria, corFundo]) {
+    input.addEventListener("input", previaTema);
+  }
+
+
   const form = h(
     "form",
     { class: "form-painel" },
@@ -1154,6 +1661,11 @@ function cardTenant() {
       grupo("Cor secundária", corSecundaria),
       grupo("Cor de fundo", corFundo),
       grupo("URL da logo", logo, "Opcional. Use uma imagem quadrada.")
+    ),
+    h(
+      "p",
+      { class: "muted" },
+      "O sistema ajusta automaticamente a cor do texto para manter o contraste legível, mesmo em fundos claros ou escuros."
     ),
     h(
       "button",
@@ -1245,7 +1757,7 @@ async function carregarDrive() {
           "span",
           { class: "muted" },
           drive.conectado
-            ? `Pasta: ${drive.folder_id ?? "—"}`
+            ? `Conta: ${drive.email ?? "conectada"} · Pasta: ${drive.folder_id ?? "—"}`
             : drive.storage_mode === "r2" && drive.r2_configurado
               ? "Armazenamento atual: Cloudflare R2."
               : drive.r2_configurado
@@ -1258,6 +1770,40 @@ async function carregarDrive() {
     const acoes = h("div", { class: "acoes-painel" });
     if (drive.conectado) {
       acoes.append(
+        h(
+          "button",
+          {
+            class: "btn-painel btn-secundario-painel btn-pequeno",
+            on: {
+              click: async (e) => {
+                const original = e.target.textContent;
+                e.target.disabled = true;
+                e.target.textContent = "Testando…";
+                try {
+                  const teste = await api("/api/drive/testar", { method: "POST" });
+                  toast(teste.mensagem ?? "Conexão validada.");
+                  if (!teste.ok) {
+                    box.prepend(
+                      h(
+                        "div",
+                        { class: "aviso-painel" },
+                        `${teste.mensagem ?? "Conexão com problema."} ${
+                          teste.precisa_reconectar ? "Reconecte a conta abaixo." : ""
+                        }`
+                      )
+                    );
+                  }
+                  carregarDrive();
+                } catch (err) {
+                  toast(err.message ?? "Falha ao testar o Drive.", "erro");
+                  e.target.disabled = false;
+                  e.target.textContent = original;
+                }
+              },
+            },
+          },
+          "Testar conexão"
+        ),
         h(
           "button",
           {
@@ -1404,10 +1950,230 @@ function cardCampos() {
     h(
       "p",
       { class: "card-desc" },
-      "Ative ou desative seções e campos do template. Customização por cliente não entra no produto."
+      "Ative, desative e ordene o que aparece para o cliente. As fichas já enviadas não mudam."
     ),
-    form
+    form,
+    h("div", { class: "divisor-card", "aria-hidden": "true" }),
+    cardCamposCustomizados()
   );
+}
+
+function cardCamposCustomizados() {
+  const baseIds = new Set(
+    (state.template?.campos_json?.secoes ?? []).flatMap((s) =>
+      (s.campos ?? []).map((c) => c.id)
+    )
+  );
+  let campos = normalizarCamposCustomizados(
+    state.formulario?.campos_customizados ?? [],
+    new Set(baseIds)
+  );
+  const limite = state.plano?.limites?.campos_customizados;
+  const lista = h("div", { class: "custom-lista" });
+  const aviso = h("div", { class: "aviso-painel", hidden: true });
+
+  const label = h("input", { class: "entrada-painel", id: "custom-label", placeholder: "Ex.: Alergia a látex" });
+  const tipo = h(
+    "select",
+    { class: "entrada-painel", id: "custom-tipo" },
+    ...TIPOS_CAMPO_CUSTOMIZADO.map((t) => h("option", { value: t }, rotuloTipo(t)))
+  );
+  const secao = h(
+    "select",
+    { class: "entrada-painel", id: "custom-secao" },
+    h("option", { value: "" }, "Informações adicionais"),
+    ...(state.template?.campos_json?.secoes ?? []).map((s) =>
+      h("option", { value: s.id }, s.titulo)
+    )
+  );
+  const opcoes = h("input", { class: "entrada-painel", id: "custom-opcoes", placeholder: "Opções separadas por vírgula" });
+  const hint = h("input", { class: "entrada-painel", id: "custom-hint", placeholder: "Texto de ajuda (opcional)" });
+  const obrigatorio = h("input", { type: "checkbox", id: "custom-obrigatorio" });
+  const blocoOpcoes = h(
+    "label",
+    { class: "campo-painel", hidden: true },
+    h("span", { class: "campo-painel-rotulo" }, "Opções"),
+    opcoes
+  );
+
+  tipo.addEventListener("change", () => {
+    blocoOpcoes.hidden = !["select", "checkbox"].includes(tipo.value);
+  });
+
+  const formAdd = h(
+    "form",
+    { class: "form-painel custom-form" },
+    h(
+      "div",
+      { class: "form-grid" },
+      grupo("Nome do campo", label),
+      grupo("Tipo", tipo),
+      grupo("Seção", secao)
+    ),
+    h(
+      "div",
+      { class: "form-grid" },
+      grupo("Ajuda para o cliente", hint),
+      blocoOpcoes,
+      h(
+        "label",
+        { class: "campo-painel campo-inline" },
+        obrigatorio,
+        h("span", { class: "campo-painel-rotulo" }, "Obrigatório")
+      )
+    ),
+    h(
+      "div",
+      { class: "acoes-painel" },
+      h("button", { class: "btn-painel btn-primario-painel", type: "submit" }, "Adicionar campo")
+    )
+  );
+
+  formAdd.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!label.value.trim()) {
+      toast("Dê um nome ao campo.", "erro");
+      return;
+    }
+    if (limite !== null && limite !== undefined && campos.length >= limite) {
+      toast(
+        `Seu plano ${state.plano?.nome ?? ""} permite ${limite} campos personalizados. Faça upgrade para adicionar mais.`,
+        "erro"
+      );
+      return;
+    }
+    const novos = normalizarCamposCustomizados(
+      [
+        ...campos,
+        {
+          label: label.value,
+          tipo: tipo.value,
+          obrigatorio: obrigatorio.checked,
+          placeholder: hint.value,
+          hint: hint.value,
+          secao_id: secao.value || undefined,
+          opcoes: opcoes.value
+            .split(",")
+            .map((o) => o.trim())
+            .filter(Boolean),
+        },
+      ],
+      new Set(baseIds)
+    );
+    await salvar(novos, formAdd);
+    label.value = "";
+    opcoes.value = "";
+    hint.value = "";
+    obrigatorio.checked = false;
+  });
+
+  function renderLista() {
+    lista.replaceChildren();
+    if (!campos.length) {
+      lista.append(
+        h("p", { class: "muted" }, "Nenhum campo personalizado. Use o formulário abaixo para criar o primeiro.")
+      );
+      return;
+    }
+    for (const campo of campos) {
+      lista.append(
+        h(
+          "div",
+          { class: "custom-item" },
+          h(
+            "div",
+            {},
+            h("strong", {}, campo.label),
+            h(
+              "small",
+              {},
+              `${rotuloTipo(campo.tipo)}${campo.obrigatorio ? " · obrigatório" : ""}${
+                campo.opcoes?.length ? ` · ${campo.opcoes.join(", ")}` : ""
+              }`
+            )
+          ),
+          h(
+            "button",
+            {
+              class: "btn-painel btn-secundario-painel btn-pequeno",
+              type: "button",
+              on: {
+                click: async () => {
+                  if (!confirm(`Remover o campo "${campo.label}"? As fichas antigas preservam os dados.`)) return;
+                  await salvar(campos.filter((c) => c.id !== campo.id));
+                },
+              },
+            },
+            "Remover"
+          )
+        )
+      );
+    }
+  }
+
+  async function salvar(novos, origem = null) {
+    const botoes = origem?.querySelectorAll("button") ?? [];
+    botoes.forEach((b) => (b.disabled = true));
+    try {
+      const { formulario } = await api("/api/panel/formulario", {
+        method: "PATCH",
+        body: { campos_customizados: novos },
+      });
+      campos = normalizarCamposCustomizados(
+        formulario?.campos_customizados ?? novos,
+        new Set(baseIds)
+      );
+      state.formulario = { ...state.formulario, ...formulario, campos_customizados: campos };
+      aviso.hidden = true;
+      renderLista();
+      toast("Campos personalizados atualizados.");
+    } catch (err) {
+      aviso.hidden = false;
+      aviso.textContent =
+        err.status === 409
+          ? "Os campos personalizados entram no ar após a atualização do banco (migration de features)."
+          : err.status === 402
+            ? err.message
+            : err.message ?? "Não foi possível salvar os campos personalizados.";
+      toast(aviso.textContent, "erro");
+    } finally {
+      botoes.forEach((b) => (b.disabled = false));
+    }
+  }
+
+  renderLista();
+
+  return h(
+    "div",
+    { class: "custom-box" },
+    h(
+      "div",
+      { class: "card-topo" },
+      h("div", {}, h("h3", {}, "Campos personalizados"), h("p", { class: "card-desc" }, "Crie perguntas específicas do seu atendimento, sem depender de suporte.")),
+      limite !== null && limite !== undefined
+        ? h("span", { class: "badge-status neutro" }, `${campos.length}/${limite} usados`)
+        : null
+    ),
+    aviso,
+    lista,
+    formAdd
+  );
+}
+
+function rotuloTipo(tipo) {
+  const mapa = {
+    text: "Texto curto",
+    textarea: "Texto longo",
+    date: "Data",
+    cpf: "CPF",
+    tel: "Telefone",
+    email: "E-mail",
+    number: "Número",
+    sim_nao: "Sim ou não",
+    select: "Lista de opções",
+    checkbox: "Múltipla escolha",
+  };
+  return mapa[tipo] ?? tipo;
 }
 
 function mapaCamposAtivos(secoes, camposAtivos) {
@@ -1427,6 +2193,161 @@ function mapaCamposAtivos(secoes, camposAtivos) {
     mapa.set(entrada.id, new Set(entrada.campos ?? []));
   }
   return mapa;
+}
+
+function cardPermissoes() {
+  const atual = normalizarPermissoes(state.permissoes ?? state.tenant?.permissoes);
+  const chaves = [
+    {
+      id: "permite_pendencia_responsavel",
+      titulo: "Menor de idade pode concluir com pendência",
+      descricao:
+        "A ficha é aceita provisoriamente e o responsável envia documento/assinatura depois pelo link de complemento.",
+    },
+    {
+      id: "permite_alteracao_dados",
+      titulo: "Aceitar pedidos de alteração",
+      descricao:
+        "O cliente pode solicitar correção pelo protocolo. O dono revisa antes de aplicar.",
+    },
+    {
+      id: "exige_aprovacao_alteracao",
+      titulo: "Exigir aprovação do dono",
+      descricao:
+        "Toda correção passa por aprovação. Desative apenas se quiser edição direta pela equipe.",
+    },
+    {
+      id: "mostrar_vitrine",
+      titulo: "Mostrar vitrine de produtos",
+      descricao:
+        "Exibe outras soluções FichaPro no fim da ficha e no painel, ajudando no boca a boca.",
+    },
+  ];
+
+  const form = h("form", { class: "form-painel" });
+  const entradas = new Map();
+  for (const chave of chaves) {
+    const input = h("input", {
+      type: "checkbox",
+      id: `perm-${chave.id}`,
+      checked: Boolean(atual[chave.id]),
+    });
+    entradas.set(chave.id, input);
+    form.append(
+      h(
+        "label",
+        { class: "campo-check fluxo-check" },
+        input,
+        h(
+          "span",
+          {},
+          h("strong", {}, chave.titulo),
+          h("small", {}, chave.descricao)
+        )
+      )
+    );
+  }
+
+  form.append(
+    h(
+      "div",
+      { class: "acoes-painel" },
+      h("button", { class: "btn-painel btn-primario-painel", type: "submit" }, "Salvar fluxos")
+    )
+  );
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const permissoes = {};
+    for (const [id, input] of entradas) permissoes[id] = input.checked;
+    try {
+      const { tenant } = await api("/api/panel/tenant", {
+        method: "PATCH",
+        body: { permissoes },
+      });
+      state.tenant = { ...state.tenant, ...tenant };
+      state.permissoes = normalizarPermissoes(tenant?.permissoes ?? permissoes);
+      toast("Fluxos atualizados.");
+    } catch (err) {
+      toast(
+        err.status === 409
+          ? "Esses fluxos entram no ar após a atualização do banco (migration de features)."
+          : err.message ?? "Falha ao salvar os fluxos.",
+        "erro"
+      );
+    }
+  });
+
+  return h(
+    "section",
+    { class: "painel-card" },
+    h("h3", { class: "card-titulo-painel" }, "Fluxos e exceções"),
+    h(
+      "p",
+      { class: "card-desc" },
+      "Regras flexíveis para situações reais: menor de idade, correção de dados e compartilhamento autorizado."
+    ),
+    form
+  );
+}
+
+function cardVitrineSuporte() {
+  const produtos = produtosPara(state.tenant?.nicho_slug ?? "", 3);
+  return h(
+    "section",
+    { class: "painel-card" },
+    h("h3", { class: "card-titulo-painel" }, "Suporte e vitrine"),
+    h(
+      "p",
+      { class: "card-desc" },
+      "Precisa de ajuda? Fale com uma pessoa de verdade. A vitrine abaixo ajuda a divulgar o FichaPro para outros profissionais."
+    ),
+    h(
+      "div",
+      { class: "suporte-card" },
+      h("span", { class: "suporte-icone" }, "💬"),
+      h(
+        "div",
+        {},
+        h("strong", {}, "Suporte via WhatsApp"),
+        h("span", {}, `Atendimento pelo número ${SUPORTE_WHATSAPP.exibicao}`)
+      ),
+      h(
+        "a",
+        {
+          class: "btn-painel btn-whatsapp",
+          href: SUPORTE_WHATSAPP.url("Olá! Preciso de ajuda com o FichaPro."),
+          target: "_blank",
+          rel: "noopener noreferrer",
+        },
+        "Abrir conversa"
+      )
+    ),
+    h(
+      "div",
+      { class: "vitrine-painel-grid" },
+      ...produtos.map((produto) =>
+        h(
+          "div",
+          { class: "vitrine-painel-card" },
+          h("strong", {}, produto.nome),
+          h("span", {}, produto.descricao),
+          produto.em_breve
+            ? h("small", {}, "Em breve")
+            : h(
+                "a",
+                {
+                  class: "link-painel",
+                  href: `https://zapfichas.github.io/ficha/${produto.caminho}/`,
+                  target: "_blank",
+                  rel: "noopener noreferrer",
+                },
+                "Indicar →"
+              )
+        )
+      )
+    )
+  );
 }
 
 function cardPlano() {
@@ -1459,6 +2380,11 @@ function cardPlano() {
           "button",
           { class: "btn-painel btn-secundario-painel btn-pequeno", on: { click: () => copiar(state.linkFicha) } },
           "Copiar link"
+        ),
+        h(
+          "button",
+          { class: "btn-painel btn-secundario-painel btn-pequeno", on: { click: () => navegar("planos") } },
+          "Ver planos"
         ),
         h(
           "a",
@@ -1701,7 +2627,8 @@ function renderOnboardingSucesso(resultado) {
 window.addEventListener("hashchange", () => {
   if (!state.tenant) return;
   const rota = window.location.hash.replace(/^#\/?/, "");
-  state.view = rota === "configuracoes" ? "configuracoes" : "fichas";
+  state.view = ROTAS.includes(rota) ? rota : "fichas";
+  if (state.view === "admin" && !state.plataformaAdmin) state.view = "fichas";
   renderShell();
 });
 

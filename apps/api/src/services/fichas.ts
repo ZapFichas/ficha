@@ -1,13 +1,19 @@
 import {
   aplicarCamposAtivos,
+  aplicarCamposCustomizados,
   base64ParaBytes,
   calcularIdade,
   hashConteudo,
+  mensagemUpgrade,
+  normalizarPermissoes,
+  PLANOS,
+  produtosPara,
   renderizarTexto,
   resumoFicha,
   sanitizarRespostas,
   ultimos4CPF,
   validarRespostas,
+  verificarLimite,
 } from "@fichapro/shared";
 import type { Env, PdfJob } from "../env.js";
 import {
@@ -17,10 +23,12 @@ import {
   hashCPF,
   nomeArquivoSeguro,
   normalizarIp,
+  tokenComplemento,
 } from "../lib/crypto.js";
 import { clienteAdmin } from "../lib/supabase.js";
 import type { PayloadFicha } from "../lib/schemas.js";
 import { gerarPdfFicha } from "./pdf.js";
+import { listarProfissionais, resolverProfissional } from "./profissionais.js";
 import { obterStorage, type StorageAdapter } from "./storage.js";
 
 export class HttpError extends Error {
@@ -46,6 +54,8 @@ interface TenantRow {
   email_contato: string | null;
   retencao_anos: number;
   trial_expira_em: string | null;
+  whatsapp?: string | null;
+  permissoes?: Record<string, boolean> | null;
 }
 
 interface TemplateRow {
@@ -86,6 +96,57 @@ function erroMensagem(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
+function normalizarPlano(valor: unknown): keyof typeof PLANOS {
+  return typeof valor === "string" && Object.prototype.hasOwnProperty.call(PLANOS, valor)
+    ? (valor as keyof typeof PLANOS)
+    : "solo";
+}
+
+/** Erro do PostgREST quando uma coluna nova ainda não existe no banco. */
+function colunaAusente(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  const msg = String(error.message ?? "").toLowerCase();
+  return (
+    error.code === "PGRST204" ||
+    error.code === "42703" ||
+    (msg.includes("column") && msg.includes("does not exist")) ||
+    msg.includes("could not find") && msg.includes("column")
+  );
+}
+
+/**
+ * Limite de fichas do plano. O plano Solo atual é ilimitado; o trial tem
+ * teto para evitar abuso. O bloqueio devolve 402 com instrução de upgrade.
+ */
+async function garantirLimiteFichas(env: Env, tenant: TenantRow): Promise<void> {
+  const plano = normalizarPlano(tenant.plano);
+  const limite = PLANOS[plano].limites.fichas_mes;
+  if (limite === null || limite === undefined) return;
+
+  const agora = new Date();
+  const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1).toISOString();
+  const admin = clienteAdmin(env);
+  const { count } = await admin
+    .from("fichas")
+    .select("id", { count: "exact", head: true })
+    .eq("tenant_id", tenant.id)
+    .gte("criado_em", inicioMes);
+
+  const verificacao = verificarLimite(plano, "fichas_mes", count ?? 0);
+  if (!verificacao.ok) {
+    throw new HttpError(
+      402,
+      `${mensagemUpgrade(plano, "fichas_mes")} Limite atual: ${verificacao.limite} fichas por mês.`,
+      {
+        codigo: "limite_plano",
+        recurso: "fichas_mes",
+        plano,
+        upgrade: verificacao.upgrade ?? "estudio",
+      }
+    );
+  }
+}
+
 function validarImagemAssinatura(base64: string): boolean {
   const limpo = base64.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
   try {
@@ -105,9 +166,7 @@ export async function obterFormularioPublico(env: Env, slug: string) {
 
   const { data: tenant, error } = await admin
     .from("tenants")
-    .select(
-      "id, slug, nome_negocio, nicho_slug, status, storage_mode, branding, email_contato, retencao_anos, trial_expira_em"
-    )
+    .select("*")
     .eq("slug", slug)
     .maybeSingle<TenantRow>();
 
@@ -131,7 +190,7 @@ export async function obterFormularioPublico(env: Env, slug: string) {
 
   const { data: formulario } = await admin
     .from("formularios")
-    .select("id, template_id, nome, campos_ativos, branding_override")
+    .select("*")
     .eq("tenant_id", tenant.id)
     .eq("ativo", true)
     .order("criado_em", { ascending: true })
@@ -153,25 +212,31 @@ export async function obterFormularioPublico(env: Env, slug: string) {
     throw new HttpError(409, "O template desta ficha não está disponível.");
   }
 
-  const { data: profissionais } = await admin
-    .from("usuarios")
-    .select("id, nome, email")
-    .eq("tenant_id", tenant.id)
-    .eq("ativo", true)
-    .order("nome", { ascending: true });
+  const { itens: profissionais, aviso: avisoProfissionais } = await listarProfissionais(
+    admin,
+    tenant.id
+  );
 
   const branding = {
     ...(tenant.branding ?? {}),
     ...((formulario.branding_override as Record<string, unknown> | null) ?? {}),
   };
 
+  const templateCompleto = aplicarCamposCustomizados(
+    montarTemplate(template),
+    formulario.campos_customizados ?? []
+  );
+  const permissoes = normalizarPermissoes(tenant.permissoes);
+
   return {
     tenant: {
       slug: tenant.slug,
       nome_negocio: tenant.nome_negocio,
+      nicho_slug: tenant.nicho_slug,
       branding,
       retencao_anos: tenant.retencao_anos,
       email_contato: tenant.email_contato,
+      whatsapp: tenant.whatsapp ?? null,
     },
     template: {
       nicho_slug: template.nicho_slug,
@@ -179,20 +244,27 @@ export async function obterFormularioPublico(env: Env, slug: string) {
       nome_comercial: template.nome_comercial,
       versao: template.versao,
       secoes: template.campos_json.secoes,
-      consentimentos_extras: template.campos_json.consentimentos_extras ?? [],
+      consentimentos_extras: templateCompleto.consentimentos_extras ?? [],
       termo_texto: template.termo_texto,
       consentimento_lgpd: template.consentimento_lgpd,
     },
     formulario: {
       id: formulario.id,
       nome: formulario.nome,
-      campos_ativos: formulario.campos_ativos,
+      campos_ativos: formulario.campos_ativos ?? null,
+      campos_customizados: formulario.campos_customizados ?? [],
     },
-    profissionais: (profissionais ?? []).map((p) => ({
+    profissionais: profissionais.map((p) => ({
       id: p.id,
-      nome: p.nome?.trim() || p.email.split("@")[0],
+      nome: p.nome?.trim() || "Profissional",
+      especialidade: p.especialidade ?? null,
     })),
-    config: { api_version: 1 },
+    permissoes,
+    produtos: permissoes.mostrar_vitrine
+      ? produtosPara(tenant.nicho_slug, 3)
+      : [],
+    avisos: avisoProfissionais ? [avisoProfissionais] : [],
+    config: { api_version: 2 },
   };
 }
 
@@ -226,7 +298,7 @@ export async function criarFichaPublica(
 
   const consultaFormulario = admin
     .from("formularios")
-    .select("id, template_id, nome, campos_ativos")
+    .select("*")
     .eq("tenant_id", tenant.id)
     .eq("ativo", true);
 
@@ -248,11 +320,17 @@ export async function criarFichaPublica(
     throw new HttpError(409, "O template enviado não corresponde ao formulário do estabelecimento.");
   }
 
-  const template = montarTemplate(templateRow);
-  const camposAtivos = formulario.campos_ativos;
+  const templateBase = montarTemplate(templateRow);
+  const template = aplicarCamposCustomizados(
+    aplicarCamposAtivos(templateBase, formulario.campos_ativos ?? null),
+    formulario.campos_customizados ?? []
+  );
+  const permissoes = normalizarPermissoes(tenant.permissoes);
   const dadosBrutos = payload.dados ?? {};
 
-  const validacao = validarRespostas(template, dadosBrutos, { camposAtivos }) as {
+  await garantirLimiteFichas(env, tenant);
+
+  const validacao = validarRespostas(template, dadosBrutos, { camposAtivos: null }) as {
     valido: boolean;
     erros: Record<string, string>;
   };
@@ -270,13 +348,32 @@ export async function criarFichaPublica(
 
   const assinaturaCliente = payload.assinaturas.find((a) => a.papel === "cliente");
   const assinaturaResponsavel = payload.assinaturas.find((a) => a.papel === "responsavel");
+  const pendenciaSolicitada = menorIdade && payload.meta?.pendencia_documentacao === true;
+  const pendenciaPermitida = permissoes.permite_pendencia_responsavel === true;
+  const pendencias: Array<Record<string, unknown>> = [];
 
   if (!assinaturaCliente || !validarImagemAssinatura(assinaturaCliente.imagem_base64)) {
     throw new HttpError(422, "A assinatura do cliente é obrigatória.");
   }
   if (menorIdade) {
-    if (!assinaturaResponsavel || !validarImagemAssinatura(assinaturaResponsavel.imagem_base64)) {
+    const assinouResponsavel =
+      assinaturaResponsavel && validarImagemAssinatura(assinaturaResponsavel.imagem_base64);
+    if (!assinouResponsavel && !pendenciaSolicitada) {
       throw new HttpError(422, "A assinatura do responsável legal é obrigatória.");
+    }
+    if (!assinouResponsavel && pendenciaSolicitada) {
+      if (!pendenciaPermitida) {
+        throw new HttpError(
+          422,
+          "Este estabelecimento não permite concluir a ficha sem a assinatura do responsável."
+        );
+      }
+      pendencias.push({
+        tipo: "documentacao_responsavel",
+        descricao: "Aguardando assinatura e documento do responsável legal.",
+        status: "pendente",
+        criado_em: new Date().toISOString(),
+      });
     }
   } else if (assinaturaResponsavel) {
     throw new HttpError(422, "Assinatura de responsável enviada sem cliente menor de idade.");
@@ -296,10 +393,14 @@ export async function criarFichaPublica(
     }
   }
 
-  const limpos = sanitizarRespostas(template, dadosBrutos, { camposAtivos }) as Record<
+  const limpos = sanitizarRespostas(template, dadosBrutos, { camposAtivos: null }) as Record<
     string,
     any
   >;
+  const profissional = await resolverProfissional(admin, tenant.id, {
+    id: payload.profissional_id ?? null,
+    nome: limpos.profissional ?? null,
+  });
   const dadosSemArquivos: Record<string, any> = { ...limpos };
   const anexos: Array<{
     tipo: string;
@@ -309,7 +410,7 @@ export async function criarFichaPublica(
     conteudo_base64: string;
   }> = [];
 
-  const templateFiltrado = aplicarCamposAtivos(template, camposAtivos);
+  const templateFiltrado = template;
   for (const secao of templateFiltrado.secoes ?? []) {
     for (const campo of secao.campos ?? []) {
       if (campo.tipo !== "upload") continue;
@@ -387,6 +488,8 @@ export async function criarFichaPublica(
         idioma: payload.meta?.idioma,
         user_agent: payload.meta?.user_agent,
         menor_idade: menorIdade,
+        pendencias,
+        profissional_id: profissional?.id ?? null,
       },
       template_versao: template.versao,
     },
@@ -395,29 +498,44 @@ export async function criarFichaPublica(
 
   const clienteCpfHash = await hashCPF(String(limpos.cpf ?? ""), env.CPF_HASH_PEPPER);
 
-  const { data: ficha, error: erroInsert } = await admin
+  const registroFicha: Record<string, unknown> = {
+    tenant_id: tenant.id,
+    formulario_id: formulario.id,
+    template_id: template.id,
+    cliente_nome: String(limpos.nome),
+    cliente_cpf_hash: clienteCpfHash,
+    cliente_cpf_ultimos4: ultimos4CPF(String(limpos.cpf ?? "")),
+    cliente_data_nasc: limpos.data_nascimento,
+    menor_idade: menorIdade,
+    status: "preenchida",
+    dados_json: resumoFicha(template, dadosSemArquivos),
+    dados_cifrados: dadosCifrados,
+    ip_assinatura: ipNormalizado,
+    user_agent_assinatura: ua,
+    timestamp_assinatura: assinadoEm.toISOString(),
+    retencao_ate: dataMaisAnos(tenant.retencao_anos),
+    origem: "form_publico",
+    idempotency_key: idempotencyKey,
+  };
+
+  const extrasFicha: Record<string, unknown> = {};
+  if (profissional?.id) extrasFicha.profissional_id = profissional.id;
+  if (pendencias.length) extrasFicha.pendencias = pendencias;
+
+  let { data: ficha, error: erroInsert } = await admin
     .from("fichas")
-    .insert({
-      tenant_id: tenant.id,
-      formulario_id: formulario.id,
-      template_id: template.id,
-      cliente_nome: String(limpos.nome),
-      cliente_cpf_hash: clienteCpfHash,
-      cliente_cpf_ultimos4: ultimos4CPF(String(limpos.cpf ?? "")),
-      cliente_data_nasc: limpos.data_nascimento,
-      menor_idade: menorIdade,
-      status: "preenchida",
-      dados_json: resumoFicha(template, dadosSemArquivos),
-      dados_cifrados: dadosCifrados,
-      ip_assinatura: ipNormalizado,
-      user_agent_assinatura: ua,
-      timestamp_assinatura: assinadoEm.toISOString(),
-      retencao_ate: dataMaisAnos(tenant.retencao_anos),
-      origem: "form_publico",
-      idempotency_key: idempotencyKey,
-    })
+    .insert({ ...registroFicha, ...extrasFicha })
     .select("id, protocolo, status")
     .single();
+
+  // Compatibilidade com bancos que ainda não receberam a migration de features.
+  if (erroInsert && Object.keys(extrasFicha).length && colunaAusente(erroInsert)) {
+    ({ data: ficha, error: erroInsert } = await admin
+      .from("fichas")
+      .insert(registroFicha)
+      .select("id, protocolo, status")
+      .single());
+  }
 
   if (erroInsert || !ficha) {
     // Corrida de idempotência: devolve a ficha já criada.
@@ -499,14 +617,16 @@ export async function criarFichaPublica(
   const registrosConsentimento = [
     { tipo: "termo", texto: textoTermo, aceito: true },
     { tipo: "lgpd", texto: textoLgpd, aceito: true },
-    ...(template.consentimentos_extras ?? []).map((extra) => {
-      const c = consentPorTipo.get(`extra:${extra.id}`);
-      return {
-        tipo: `extra:${extra.id}`,
-        texto: extra.label,
-        aceito: Boolean(c?.aceito),
-      };
-    }),
+    ...(template.consentimentos_extras ?? []).map(
+      (extra: { id: string; label: string; obrigatorio?: boolean }) => {
+        const c = consentPorTipo.get(`extra:${extra.id}`);
+        return {
+          tipo: `extra:${extra.id}`,
+          texto: extra.label,
+          aceito: Boolean(c?.aceito),
+        };
+      }
+    ),
   ].map((c) => ({
     tenant_id: tenant.id,
     ficha_id: ficha.id,
@@ -550,11 +670,21 @@ export async function criarFichaPublica(
     });
   }
 
+  const token = await tokenComplemento(ficha.id, ficha.protocolo, env.CPF_HASH_PEPPER);
+  const baseSite = (env.FICHA_URL_TEMPLATE ?? "https://zapfichas.github.io/ficha/{nicho}/write/?t={slug}")
+    .split("{nicho}")[0]
+    .replace(/\/$/, "");
+  const linkComplemento = `${baseSite}/complementar/?f=${encodeURIComponent(
+    ficha.id
+  )}&p=${encodeURIComponent(ficha.protocolo)}&t=${encodeURIComponent(token)}`;
+
   return {
     id: ficha.id,
     protocolo: ficha.protocolo,
-    status: ficha.status,
+    status: pendencias.length ? "pendente_documentacao" : ficha.status,
     idempotente: false,
+    pendencia_documentacao: pendencias.length > 0,
+    link_complemento: pendencias.length ? linkComplemento : undefined,
   };
 }
 
@@ -617,6 +747,17 @@ export async function processarFichaPdf(env: Env, fichaId: string): Promise<void
     .eq("id", ficha.template_id)
     .maybeSingle<TemplateRow>();
   if (!templateRow) throw new Error("Template da ficha não encontrado.");
+
+  const { data: formulario } = await admin
+    .from("formularios")
+    .select("*")
+    .eq("id", ficha.formulario_id)
+    .maybeSingle();
+
+  const templateCompleto = aplicarCamposCustomizados(
+    aplicarCamposAtivos(montarTemplate(templateRow), formulario?.campos_ativos ?? null),
+    formulario?.campos_customizados ?? []
+  );
 
   const { data: segredos } = await admin
     .from("tenant_secrets")
@@ -688,7 +829,7 @@ export async function processarFichaPdf(env: Env, fichaId: string): Promise<void
         email_contato: tenant.email_contato,
         retencao_anos: tenant.retencao_anos,
       },
-      template: montarTemplate(templateRow),
+      template: templateCompleto,
       ficha: {
         protocolo: ficha.protocolo,
         cliente_nome: ficha.cliente_nome,
@@ -808,16 +949,26 @@ async function enviarAnexosPendentes(
         pastas: [mes],
       });
 
-      await admin
+      const atualizacaoAnexo: Record<string, unknown> = {
+        status: "enviado",
+        storage_key: resultado.key,
+        conteudo_base64: null,
+        enviado_em: new Date().toISOString(),
+        erro: null,
+      };
+      if (resultado.externalId) atualizacaoAnexo.storage_external_id = resultado.externalId;
+      let { error: erroAtualizacao } = await admin
         .from("ficha_anexos")
-        .update({
-          status: "enviado",
-          storage_key: resultado.key,
-          conteudo_base64: null,
-          enviado_em: new Date().toISOString(),
-          erro: null,
-        })
+        .update(atualizacaoAnexo)
         .eq("id", anexo.id);
+      if (erroAtualizacao && colunaAusente(erroAtualizacao)) {
+        delete atualizacaoAnexo.storage_external_id;
+        ({ error: erroAtualizacao } = await admin
+          .from("ficha_anexos")
+          .update(atualizacaoAnexo)
+          .eq("id", anexo.id));
+      }
+      if (erroAtualizacao) throw new Error(erroAtualizacao.message);
     } catch (err) {
       await admin
         .from("ficha_anexos")

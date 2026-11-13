@@ -32,6 +32,9 @@ export interface Env {
   EMAIL_FROM?: string;
   SENTRY_DSN?: string;
 
+  /** E-mails (separados por vírgula) com acesso ao dashboard global. */
+  PLATFORM_ADMIN_EMAILS?: string;
+
   STRIPE_WEBHOOK_SECRET?: string;
   ASAAS_WEBHOOK_TOKEN?: string;
 }

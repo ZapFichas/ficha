@@ -29,6 +29,7 @@ rotasOnboarding.post("/criar", async (c) => {
 
   const usuario = await obterUsuarioDoToken(c.env, token);
   if (!usuario?.email) return c.json({ erro: "Sessão inválida." }, 401);
+  const emailUsuario = usuario.email;
 
   const corpo = await c.req.json().catch(() => null);
   const parsed = onboardingSchema.safeParse(corpo);
@@ -79,6 +80,29 @@ rotasOnboarding.post("/criar", async (c) => {
     template_slug: string;
     status: string;
   };
+
+  // Semeia o primeiro profissional a partir do owner. Best-effort: bancos sem
+  // a migration de features seguem usando o fallback de usuarios.
+  c.executionCtx.waitUntil(
+    (async () => {
+      try {
+        const { error: erroProfissional } = await admin
+          .from("profissionais")
+          .insert({
+            tenant_id: resultado.tenant_id,
+            nome: nome_usuario?.trim() || emailUsuario.split("@")[0],
+            email: emailUsuario,
+            especialidade: nicho_slug,
+            ativo: true,
+          });
+        if (erroProfissional && erroProfissional.code !== "42P01") {
+          console.warn("Falha ao criar profissional inicial:", erroProfissional.message);
+        }
+      } catch {
+        // Sem migration de equipe: o fallback de usuarios continua valendo.
+      }
+    })()
+  );
 
   const linkFicha = urlFicha(c.env, resultado.slug, resultado.template_slug);
   const linkPainel = urlPainel(c.env);
