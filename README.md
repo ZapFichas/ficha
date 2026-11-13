@@ -68,7 +68,7 @@ No modo demo:
 Testes:
 
 ```bash
-npm test                 # 25 testes (validação, URLs, cripto, PDF)
+npm test                 # 29 testes (validação, URLs, schemas, cripto, PDF)
 npm run typecheck        # TypeScript do Worker
 npm run build            # build da ficha + painel + bundle do Worker
 ```

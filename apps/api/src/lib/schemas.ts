@@ -43,8 +43,27 @@ export const payloadFichaSchema = z.object({
 
 export type PayloadFicha = z.infer<typeof payloadFichaSchema>;
 
-export const onboardingSchema = z.object({
-  slug: z
+/**
+ * null = todos os campos do template.
+ * array = lista de ids.
+ * objeto = { secoes: [{ id, campos?: [ids] }] }
+ */
+export const camposAtivosSchema = z.union([
+  z.null(),
+  z.array(z.string().min(1).max(80)).max(200),
+  z.object({
+    secoes: z
+      .array(
+        z.object({
+          id: z.string().min(1).max(80),
+          campos: z.array(z.string().min(1).max(80)).max(200).optional(),
+        })
+      )
+      .max(50),
+  }),
+]);
+
+export const onboardingSchema = z.object({  slug: z
     .string()
     .min(3)
     .max(63)

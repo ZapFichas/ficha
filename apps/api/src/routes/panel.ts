@@ -3,6 +3,7 @@ import { formatarDataHoraBR } from "@fichapro/shared";
 import type { AppEnv } from "../env.js";
 import { exigirAutenticacao, exigirOwner } from "../lib/auth.js";
 import { descriptografarJson } from "../lib/crypto.js";
+import { camposAtivosSchema } from "../lib/schemas.js";
 import { clienteAdmin, clienteUsuario } from "../lib/supabase.js";
 import { urlFicha, urlPainel } from "../lib/urls.js";
 import { DriveStorage } from "../services/drive.js";
@@ -155,7 +156,11 @@ rotasPainel.get("/fichas/:id/pdf", async (c) => {
 
   if (!ficha) return c.json({ erro: "Ficha não encontrada." }, 404);
   if (ficha.status !== "salva") {
-    return c.json({ erro: "O PDF ainda está sendo gerado.", status: ficha.status }, 409);
+    const mensagem =
+      ficha.status === "erro"
+        ? "O PDF não foi gerado. Verifique o erro e reprocesse a ficha."
+        : "O PDF ainda está sendo gerado.";
+    return c.json({ erro: mensagem, status: ficha.status }, 409);
   }
 
   let arquivo: { bytes: Uint8Array; contentType: string } | null = null;
@@ -264,12 +269,11 @@ rotasPainel.patch("/formulario", exigirOwner(), async (c) => {
 
   if (!corpo) return c.json({ erro: "JSON inválido." }, 400);
   if (corpo.campos_ativos !== undefined) {
-    const tipo = Array.isArray(corpo.campos_ativos)
-      ? "array"
-      : typeof corpo.campos_ativos === "object" && corpo.campos_ativos !== null
-        ? "object"
-        : null;
-    if (!tipo) return c.json({ erro: "campos_ativos inválido." }, 422);
+    const parsed = camposAtivosSchema.safeParse(corpo.campos_ativos);
+    if (!parsed.success) {
+      return c.json({ erro: "campos_ativos inválido." }, 422);
+    }
+    corpo.campos_ativos = parsed.data;
   }
 
   const atualizacao: Record<string, unknown> = {};
